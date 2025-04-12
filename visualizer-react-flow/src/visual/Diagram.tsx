@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from "react";
 import { GlobalStateContext } from "@app/context/Context";
-import { ReactFlowGraph, ReactFlowNode, ContainerNode } from "@app/visual/types";
-import { Renderer } from "@app/visual/renderers";
+import { ReactFlowGraph } from "@app/visual/types";
+import { Renderer } from "@app/visual/render";
 import {
     ReactFlowProvider,
     ReactFlow,
@@ -19,9 +19,6 @@ import "../index.css";
 import { nodeTypes } from "@app/visual/nodes";
 import { edgeTypes } from "@app/visual/edges";
 
-import { ReactFlowRefresher } from "@app/visual/refresh";
-import { Finalizer } from "@app/visual/renderers/finalizer";
-
 export default function Diagram({ pKey, updateSelected }: { pKey: number, updateSelected: (s: string | undefined) => void }) {
     return (
         <ReactFlowProvider>
@@ -32,6 +29,10 @@ export default function Diagram({ pKey, updateSelected }: { pKey: number, update
 
 function ReactFlowDiagram({ pKey, updateSelected }: { pKey: number, updateSelected: (s: string | undefined) => void }) {
     const { state, stateDispatch } = useContext(GlobalStateContext);
+    const [renderer] = useState<Renderer>(() => {
+        const { view, attrs } = state.getPlotOfPanel(pKey);
+        return new Renderer(view, attrs);
+    });
     const [graph, setGraph] = useState<ReactFlowGraph>({ nodes: [], edges: [] });
     const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -40,30 +41,27 @@ function ReactFlowDiagram({ pKey, updateSelected }: { pKey: number, updateSelect
     // Update nodes and edges when graph changes
     useEffect(() => {
         const { view, attrs } = state.getPlotOfPanel(pKey);
+        renderer.reset(view, attrs);
         console.log('getplotofpanel', view, attrs);
         // clear-then-reset to avoid react-flow render error (root cause of which is unknown)
         setNodes([]);
         setEdges([]);
         if (view !== null) {
             setTimeout(() => {
-                let graph = Renderer.render(view, attrs);
+                let graph = renderer.create();
                 // @ts-ignore
-                graph.nodes = graph.nodes.map(nd => {
-                    if (nd.type != 'box' && nd.type != 'container') {
-                        return nd;
+                const notifier = (id: string, rootId: string, type: string) => setShouldUpdate([id, rootId, type]);
+                graph.nodes = graph.nodes.map(node => {
+                    if (node.type == 'box' || node.type == 'container') {
+                        node.data.notifier = notifier;
                     }
-                    return {
-                        ...nd,
-                        data: {
-                            ...nd.data,
-                            notifier: (id: string, rootId: string, type: string) => setShouldUpdate([id, rootId, type])
-                        }
-                    };
+                    return node;
                 });
-                let { nodes, edges } = Finalizer.render(graph);
+                let { nodes, edges } = renderer.finalize();
                 setGraph(graph);
                 setNodes(nodes);
                 setEdges(edges);
+                console.log('???',nodes);
                 setTimeout(() => {
                     window.requestAnimationFrame(() => {
                         fitView();
@@ -74,10 +72,9 @@ function ReactFlowDiagram({ pKey, updateSelected }: { pKey: number, updateSelect
     }, [pKey, state]);
     useEffect(() => {
         if (shouldUpdate) {
-            const [id, rootId, type] = shouldUpdate;
-            let newGraph = ReactFlowRefresher.refresh(graph, id, rootId, type);
-            let { nodes, edges } = Finalizer.render(newGraph);
-            setGraph(newGraph);
+            let graph = renderer.refresh(...shouldUpdate);
+            let { nodes, edges } = renderer.finalize();
+            setGraph(graph);
             setNodes(nodes);
             setEdges(edges);
             setShouldUpdate(undefined);

@@ -1,5 +1,5 @@
-import { StateViewIterator } from "@app/visual/renderers/iterators/iterator";
-import { RendererInternalState } from "@app/visual/renderers/pass";
+import { StateViewIterator } from "@app/visual/passes/iterators/iterator";
+import { RendererInternalState } from "@app/visual/passes";
 import { ReactFlowGraph, BoxNodeData, ContainerNodeData, BoxNode, ContainerNode } from "@app/visual/types";
 
 export class SubtreeIterator extends StateViewIterator {

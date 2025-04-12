@@ -1,5 +1,5 @@
 import { ShapeDiffInfo, TextMember, LinkMember, ContainerMember } from "@app/visual/types/plot-model";
-import { type Edge, type Node } from "@xyflow/react";
+import { type Node, type Edge } from "@xyflow/react";
 
 export type ReactFlowPlot = {
     key: string

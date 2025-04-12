@@ -1,7 +1,6 @@
 import { ReactFlowGraph } from "@app/visual/types";
-import { RendererInternalState, RendererPass } from "@app/visual/renderers/pass";
-import { EachIterator } from "@app/visual/renderers/iterators/each";
-import { SubtreeIterator } from "./iterators/subtree";
+import { RendererInternalState, RendererPass } from "@app/visual/passes";
+import { EachIterator, SubtreeIterator } from "@app/visual/passes/iterators";
 
 export class AttrSetter extends RendererPass {
     public static render(istat: RendererInternalState, graph: ReactFlowGraph): ReactFlowGraph {

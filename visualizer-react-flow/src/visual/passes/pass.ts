@@ -8,14 +8,37 @@ import {
 export abstract class RendererPass {
     public static render(_istat: RendererInternalState, _graph: ReactFlowGraph): ReactFlowGraph {
         throw new Error('RendererPass.render() must be implemented by a Pass subclass');
-        const pass = new (this as any)(_istat);
-        return pass.render();
     }
     protected istat: RendererInternalState;
     protected graph: ReactFlowGraph;
     constructor(istat: RendererInternalState, graph: ReactFlowGraph) {
         this.istat = istat;
         this.graph = graph;
+    }
+    public abstract render(): ReactFlowGraph;
+}
+
+export abstract class RefresherPass {
+    public static render(
+        _istat: RendererInternalState, _graph: ReactFlowGraph,
+        _id: string, _rootId: string, _type: string
+    ): ReactFlowGraph {
+        throw new Error('RefresherPass.render() must be implemented by a Pass subclass');
+    }
+    protected istat: RendererInternalState;
+    protected graph: ReactFlowGraph;
+    protected updId:     string;
+    protected updRootId: string;
+    protected updAttr:   string;
+    constructor(
+        istat: RendererInternalState, graph: ReactFlowGraph,
+        id: string, rootId: string, type: string
+    ) {
+        this.istat     = istat;
+        this.graph     = graph;
+        this.updId     = id;
+        this.updRootId = rootId;
+        this.updAttr   = type;
     }
     public abstract render(): ReactFlowGraph;
 }
@@ -42,6 +65,9 @@ export class RendererInternalState {
             return this.getAttrs(key).view || 'default';
         }
         throw new Error(`getShapeView: shape ${key} not found`);
+    }
+    public hasNode(key: string) {
+        return key in this.nodeMap;
     }
     public getNode(key: string) {
         return this.nodeMap[key];

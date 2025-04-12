@@ -1,4 +1,4 @@
-import { RendererInternalState } from "@app/visual/renderers/pass";
+import { RendererInternalState } from "@app/visual/passes";
 import { ReactFlowGraph, BoxNodeData, ContainerNodeData } from "@app/visual/types";
 
 export abstract class StateViewIterator {
