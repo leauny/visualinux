@@ -4,3 +4,4 @@ export * from "./setattr";
 export * from "./clickcollapse";
 export * from "./clicktrim";
 export * from "./finalizer";
+export * from "./layout";

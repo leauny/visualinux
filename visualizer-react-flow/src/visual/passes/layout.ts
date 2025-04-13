@@ -2,20 +2,20 @@ import {
     ReactFlowGraph, BoxNode, ContainerNode,
     BoxNodeData,
 } from "@app/visual/types";
+import { RendererInternalState, RendererPass } from "@app/visual/passes";
 import { type Node, type Edge } from "@xyflow/react";
 import Dagre from "@dagrejs/dagre";
 
 import * as sc from "@app/visual/nodes/styleconf";
 
-export class ReactFlowLayouter {
-    public static layout(graph: ReactFlowGraph): ReactFlowGraph {
-        const layouter = new ReactFlowLayouter(graph);
-        return layouter.layout();
+export class Layouter extends RendererPass {
+    public static render(istat: RendererInternalState, graph: ReactFlowGraph): ReactFlowGraph {
+        const layouter = new Layouter(istat, graph);
+        return layouter.render();
     }
-    private graph: ReactFlowGraph;
-    private layoutDirection: 'LR' | 'TB' = 'LR';
-    constructor(graph: ReactFlowGraph) {
-        this.graph = graph;
+    public render() {
+        this.layout();
+        return this.graph;
     }
     private layout(): ReactFlowGraph {
         //
@@ -260,7 +260,7 @@ export class ReactFlowLayouter {
             source: getRoot(edge.source),
             target: getRoot(edge.target),
         }));
-        layoutGraphByDagre(nodes, edges, { rankdir: this.layoutDirection, marginx: 16, marginy: 16, ranksep: 128 });
+        layoutGraphByDagre(nodes, edges, { rankdir: 'LR', marginx: 16, marginy: 16, ranksep: 128 });
     }
 }
 

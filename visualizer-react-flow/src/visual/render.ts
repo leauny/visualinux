@@ -7,9 +7,8 @@ import {
     RendererInternalState,
     AttrSetter,
     ClickCollapseRefresher, ClickTrimRefresher,
-    Finalizer
+    Finalizer, Layouter
 } from "@app/visual/passes";
-import { ReactFlowLayouter } from "@app/visual/layout";
 
 export class Renderer {
     private state!: RendererInternalState;
@@ -39,7 +38,7 @@ export class Renderer {
     }
     public finalize() {
         let graph = Finalizer.render(this.state, this.graph);
-        graph = ReactFlowLayouter.layout(graph);
+        graph = Layouter.render(this.state, graph);
         return graph;
     }
 }

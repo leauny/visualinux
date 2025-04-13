@@ -31,16 +31,13 @@ class SnapshotDiffSynthesizer {
         return this.snRes;
     }
     private calcStateViewDiff(viewname: string, viewSrc: StateView, viewDst: StateView): StateView {
-        const viewDiff: StateView = {
-            name: viewname,
-            pool: {
-                boxes: {},
-                containers: {},
-            },
-            plot: viewDst.plot,
-            init_attrs: { ...viewSrc.init_attrs, ...viewDst.init_attrs },
-            stat: 0,
-        }
+        const viewDiff = new StateView(
+            viewname, 
+            { boxes: {}, containers: {} },
+            viewDst.plot,
+            { ...viewSrc.init_attrs, ...viewDst.init_attrs },
+            0
+        );
         // boxes
         for (const [key, boxDst] of Object.entries(viewDst.pool.boxes)) {
             if (key in viewSrc.pool.boxes) {
