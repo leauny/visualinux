@@ -4,6 +4,7 @@ import { SplitDirection } from "@app/context/Panels";
 import Diagram from "@app/visual/Diagram";
 import { ButtonDef, ButtonsWrapper, ButtonWrapper } from "@app/panes/buttons";
 import * as icons from "@app/panes/libs/Icons";
+import { Snapshot } from "@app/visual/types";
 
 type useStateSelected = typeof useState<string | undefined>;
 
@@ -12,6 +13,8 @@ export default function PrimaryPane({ pKey }: { pKey: number }) {
     // useMemo(() => model.initDiagramRef(wKey, diagramRef), []);
     // this is used to update buttons ifEnabled() without refreshing the diagram
     // let [selected, setSelected] = useState<string | undefined>(undefined);
+    const { state } = useContext(GlobalStateContext);
+    const displayed = state.panels.getDisplayed(pKey);
     let [selected, setSelected]: ReturnType<useStateSelected> | [null, null] = [null, null];
     const onChildMount = (dataFromChild: ReturnType<useStateSelected>) => {
         selected = dataFromChild[0];
@@ -26,8 +29,7 @@ export default function PrimaryPane({ pKey }: { pKey: number }) {
         <div className="h-full flex flex-col border-2 border-[#5755d9]">
             <PrimaryWindowHeader pKey={pKey} onMount={onChildMount}/>
             <div className="flex h-full bg-white">
-                <Diagram pKey={pKey} updateSelected={updateSelected}/>
-                {/* <Console wKey={wKey}/> */}
+                <Diagram displayed={displayed} updateSelected={updateSelected}/>
             </div>
         </div>
     );
@@ -103,13 +105,15 @@ function PrimaryWindowHeader({ pKey, onMount }: {
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }], [state, selected]);
+
     return (
-        <div className="h-auto flex flex-row justify-between border-b-2 border-[#5755d9]">
+        <div className="h-auto flex flex-row flex-wrap justify-between border-b-2 border-[#5755d9]">
             <ButtonsWrapper direction="left">
                 <div className="w-[30px] h-[30px] flex items-center justify-center border-2 border-[#5755d9] rounded cursor-pointer">
                     #{pKey}
                 </div>
                 <ViewSelector pKey={pKey} />
+                <SnapshotSelector pKey={pKey} />
             </ButtonsWrapper>
             <ButtonsWrapper direction="right">
                 {/* <DropdownAbstSelector wKey={wKey} enabled={selected !== undefined}/> */}
@@ -124,14 +128,17 @@ function PrimaryWindowHeader({ pKey, onMount }: {
 function ViewSelector({ pKey }: { pKey: number }) {
     const { state, stateDispatch } = useContext(GlobalStateContext);
     const [isOpen, setIsOpen] = useState(false);
-    const viewnameList = state.snapshots.getViewnameList();
-    const viewname = state.panels.getViewname(pKey);
+    const displayed = state.panels.getDisplayed(pKey);
+    const viewnameList = useMemo(() => {
+        return state.snapshots.getViewnameList(displayed.snKey);
+    }, [displayed, state]);
 
     const toggleDropdown = () => setIsOpen(!isOpen);
     const closeDropdown = () => setIsOpen(false);
 
     const handleSelect = (viewname: string) => {
         stateDispatch({ command: 'SWITCH', pKey, viewname });
+        // setDisplayed({ ...displayed, viewname });
         closeDropdown();
     };
 
@@ -141,7 +148,7 @@ function ViewSelector({ pKey }: { pKey: number }) {
                 className="h-[30px] px-2 flex items-center justify-center border-2 border-[#5755d9] rounded cursor-pointer"
                 onClick={toggleDropdown}
             >
-                {viewname ? viewname.slice(viewname.lastIndexOf('.') + 1) : 'select a plot...'}
+                {displayed.viewname ? displayed.viewname.slice(displayed.viewname.lastIndexOf('.') + 1) : 'select a plot...'}
             </button>
             
             {isOpen && (
@@ -161,4 +168,66 @@ function ViewSelector({ pKey }: { pKey: number }) {
             )}
         </div>
     );
+}
+
+function SnapshotSelector({ pKey }: { pKey: number }) {
+    const { state, stateDispatch } = useContext(GlobalStateContext);
+    const [isOpen, setIsOpen] = useState(false);
+    const displayed = state.panels.getDisplayed(pKey);
+    const snapshotList = state.snapshots.data;
+
+    const toggleDropdown = () => setIsOpen(!isOpen);
+    const closeDropdown = () => setIsOpen(false);
+
+    const handleSelect = (snKey: string) => {
+        stateDispatch({ command: 'USE', pKey, snKey });
+        // setDisplayed({ ...displayed, snKey });
+        closeDropdown();
+    };
+
+    return (
+        <div className="relative">
+            <button 
+                className="h-[30px] px-2 flex items-center justify-center border-2 border-[#5755d9] rounded cursor-pointer"
+                onClick={toggleDropdown}
+            >
+                {displayed.snKey ? displayed.snKey.slice(displayed.snKey.lastIndexOf('.') + 1) : 'select a snapshot...'}
+            </button>
+            
+            {isOpen && (
+                <div className="absolute z-10 mt-0.5 left-0">
+                    <ul className="min-w-48 bg-white border-2 border-[#5755d9] rounded shadow-lg">
+                        {snapshotList.map((snapshot) => {
+                            return (
+                                <li 
+                                    key={snapshot.key} 
+                                    className="px-2 whitespace-pre-wrap overflow-x-hidden text-ellipsis cursor-pointer hover:bg-gray-200"
+                                    onClick={() => handleSelect(snapshot.key)}
+                                >
+                                    <a className="block text-gray-800">{snapshotTitle(snapshot)}</a>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function snapshotTitle(snapshot: Snapshot) {
+    if (snapshot.timestamp != 0) {
+        return snapshot.key + '\n' + timestampToDate(snapshot.timestamp);
+    }
+    return snapshot.key + '\n' + '---';
+}
+
+function timestampToDate(timestamp: number) {
+    return new Date(timestamp * 1000).toLocaleString(undefined, {
+        // month: 'numeric',
+        // day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric'
+    });
 }

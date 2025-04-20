@@ -5,11 +5,9 @@ import { preprocess } from "@app/visual/preprocess";
 export default class Snapshots {
     data: Snapshot[]
     dataIndex: Map<string, number>
-    currIndex: number
-    constructor(data: Snapshot[] = [], currIndex: number = -1) {
+    constructor(data: Snapshot[] = []) {
         this.data = data;
         this.dataIndex = new Map();
-        this.currIndex = currIndex;
     }
     //
     // context APIs
@@ -27,7 +25,6 @@ export default class Snapshots {
         // store
         this.data.push(snapshot);
         this.dataIndex.set(snKey, this.data.length - 1);
-        this.currIndex = this.data.length - 1;
         console.log('new snapshot OK', snKey, snapshot);
     }
     diff(snKeySrc: string, snKeyDst: string) {
@@ -45,18 +42,18 @@ export default class Snapshots {
     //
     //
     //
-    getView(viewname: string | undefined) {
-        if (viewname === undefined) {
+    getView(snKey: string | undefined, viewname: string | undefined) {
+        if (snKey === undefined || viewname === undefined) {
             return null;
         }
-        const plot = this.getCurrent();
-        if (plot === null) {
-            return null;
-        }
+        const plot = this.get(snKey);
         return plot.views[viewname];
     }
-    getViewnameList(): string[] {
-        const plot = this.getCurrent();
+    getViewnameList(snKey: string | undefined): string[] {
+        if (snKey === undefined) {
+            return [];
+        }
+        const plot = this.get(snKey);
         if (plot === null) {
             return [];
         }
@@ -66,7 +63,7 @@ export default class Snapshots {
     // utilities
     //
     isEmpty() {
-        return this.data.length === 0 || this.currIndex === -1;
+        return this.data.length === 0;
     }
     has(snKey: string) {
         return this.dataIndex.has(snKey);
@@ -74,22 +71,8 @@ export default class Snapshots {
     get(snKey: string) {
         const index = this.dataIndex.get(snKey);
         if (index === undefined) {
-            return null;
+            throw new Error(`snapshots.get(): snapshot ${snKey} not found`);
         }
         return this.data[index];
-    }
-    getCurrent() {
-        if (this.isEmpty()) {
-            return null;
-        }
-        return this.data[this.currIndex];
-    }
-    use(snKey: string) {
-        const index = this.dataIndex.get(snKey);
-        if (index === undefined) {
-            this.currIndex = -1;
-            return;
-        }
-        this.currIndex = index;
     }
 }

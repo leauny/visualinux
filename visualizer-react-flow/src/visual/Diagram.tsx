@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { GlobalStateContext } from "@app/context/Context";
 import { ReactFlowGraph } from "@app/visual/types";
 import { Renderer } from "@app/visual/render";
@@ -18,19 +18,22 @@ import "../index.css";
 
 import { nodeTypes } from "@app/visual/nodes";
 import { edgeTypes } from "@app/visual/edges";
+import { DisplayOption } from "@app/context/Panels";
 
-export default function Diagram({ pKey, updateSelected }: { pKey: number, updateSelected: (s: string | undefined) => void }) {
+export default function Diagram({ displayed, updateSelected }: { displayed: DisplayOption, updateSelected: (s: string | undefined) => void }) {
     return (
         <ReactFlowProvider>
-            <ReactFlowDiagram pKey={pKey} updateSelected={updateSelected} />
+            <ReactFlowDiagram displayed={displayed} updateSelected={updateSelected} />
         </ReactFlowProvider>
     );
 }
 
-function ReactFlowDiagram({ pKey, updateSelected }: { pKey: number, updateSelected: (s: string | undefined) => void }) {
+// function ReactFlowDiagram({ displayed, updateSelected }: { displayed: DisplayOption, updateSelected: (s: string | undefined) => void }) {
+const ReactFlowDiagram = React.memo(({ displayed, updateSelected }: { displayed: DisplayOption, updateSelected: (s: string | undefined) => void }) => {
     const { state, stateDispatch } = useContext(GlobalStateContext);
+    // const displayed = state.panels.getDisplayed(pKey);
     const [renderer] = useState<Renderer>(() => {
-        const { view, attrs } = state.getPlotOfPanel(pKey);
+        const { view, attrs } = state.getPlot(displayed);
         return new Renderer(view, attrs);
     });
     const [graph, setGraph] = useState<ReactFlowGraph>({ nodes: [], edges: [] });
@@ -40,7 +43,7 @@ function ReactFlowDiagram({ pKey, updateSelected }: { pKey: number, updateSelect
     const { fitView } = useReactFlow();
     // Update nodes and edges when graph changes
     useEffect(() => {
-        const { view, attrs } = state.getPlotOfPanel(pKey);
+        const { view, attrs } = state.getPlot(displayed);
         renderer.reset(view, attrs);
         console.log('getplotofpanel', view, attrs);
         // clear-then-reset to avoid react-flow render error (root cause of which is unknown)
@@ -61,7 +64,6 @@ function ReactFlowDiagram({ pKey, updateSelected }: { pKey: number, updateSelect
                 setGraph(graph);
                 setNodes(nodes);
                 setEdges(edges);
-                console.log('???',nodes);
                 setTimeout(() => {
                     window.requestAnimationFrame(() => {
                         fitView();
@@ -69,7 +71,7 @@ function ReactFlowDiagram({ pKey, updateSelected }: { pKey: number, updateSelect
                 }, 100);
             }, 100);
         }
-    }, [pKey, state]);
+    }, [displayed]);
     useEffect(() => {
         if (shouldUpdate) {
             let graph = renderer.refresh(...shouldUpdate);
@@ -102,7 +104,32 @@ function ReactFlowDiagram({ pKey, updateSelected }: { pKey: number, updateSelect
             </Panel> */}
         </ReactFlow>
     );
-}
+}, (prevProps, nextProps) => {
+    const prevDisplayed = prevProps.displayed;
+    const nextDisplayed = nextProps.displayed;
+    if (prevDisplayed.snKey != nextDisplayed.snKey || prevDisplayed.viewname != nextDisplayed.viewname) {
+        return false;
+    }
+    if (prevDisplayed.viewname === undefined || nextDisplayed.viewname === undefined) {
+        return true;
+    }
+    if (prevDisplayed.viewAttrs === undefined || nextDisplayed.viewAttrs === undefined) {
+        return true;
+    }
+    const prevAttrs = prevDisplayed.viewAttrs[prevDisplayed.viewname];
+    const nextAttrs = nextDisplayed.viewAttrs[nextDisplayed.viewname];
+    for (const key in prevAttrs) {
+        if (prevAttrs[key] != nextAttrs[key]) {
+            return false;
+        }
+    }
+    for (const key in nextAttrs) {
+        if (prevAttrs[key] != nextAttrs[key]) {
+            return false;
+        }
+    }
+    return true;
+});
 
 function downloadImage(dataUrl: string, fmt: string) {
     const a = document.createElement('a');

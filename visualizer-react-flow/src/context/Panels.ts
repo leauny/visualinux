@@ -48,6 +48,13 @@ export default class Panels {
             this.secondaries[index] = panel;
         }
     }
+    use(pKey: number, snKey: string) {
+        let node = this.find(pKey);
+        if (node === undefined) {
+            throw new Error(`panels.use(): failed to find panel #${pKey}.`);
+        }
+        node.snKey = snKey;
+    }
     switch(pKey: number, viewname: string | undefined) {
         let node = this.find(pKey);
         if (node === undefined) {
@@ -107,6 +114,23 @@ export default class Panels {
     //
     // other APIs
     //
+    getDisplayed(pKey: number): DisplayOption {
+        let node = this.find(pKey);
+        if (node === undefined) {
+            throw new Error(`panels.getDisplayed(): panel #${pKey} not found`);
+        }
+        return node.displayed;
+    }
+    setSnapshot(pKey: number, snKey: string) {
+        let node = this.find(pKey);
+        if (node === undefined) {
+            throw new Error(`panels.setSnapshot(): panel #${pKey} not found`);
+        }
+        node.snKey = snKey;
+    }
+    getSnapshot(pKey: number): string | undefined {
+        return this.find(pKey)?.displayed.snKey;
+    }
     setViewname(pKey: number, viewname: string | undefined) {
         let node = this.find(pKey);
         if (node === undefined) {
@@ -221,7 +245,9 @@ export class PrimaryArea {
         // otherwise, a new area is created to replace the splitted window.
         if (this.direction == direction) {
             let splitted = new PrimaryPanel(this);
+            splitted.snKey = child.snKey;
             splitted.viewname = child.viewname;
+            splitted.viewAttrs = { ...child.viewAttrs };
             // this.children.splice(isForward ? index : index + 1, 0, splitted);
             this.children.splice(index + 1, 0, splitted);
         } else {
@@ -268,8 +294,9 @@ abstract class Panel {
 export class PrimaryPanel extends Panel {
     public readonly key: number
     public parent: PrimaryArea
-    public viewname?: string
-    public viewAttrs: {
+    protected snKey?: string
+    protected viewname?: string
+    protected viewAttrs: {
         [viewName: string]: ViewAttrs
     }
     constructor(parent: PrimaryArea) {
@@ -280,6 +307,17 @@ export class PrimaryPanel extends Panel {
     }
     public toString() {
         return `W(${this.key})`
+    }
+    public get displayed(): DisplayOption {
+        let displayed: DisplayOption = {
+            snKey: this.snKey,
+            viewname: this.viewname,
+            viewAttrs: {}
+        };
+        if (this.viewname !== undefined) {
+            displayed.viewAttrs = this.viewAttrs[this.viewname];
+        }
+        return displayed;
     }
     public split(direction: SplitDirection) {
         this.parent.split(this.key, direction);
@@ -305,6 +343,12 @@ export class SecondaryPanel extends Panel {
     toString() {
         return `<${this.key}>`
     }
+}
+
+export type DisplayOption = {
+    snKey?:    string
+    viewname?: string
+    viewAttrs: ViewAttrs
 }
 
 export function isPrimaryArea(node: PrimaryArea | PrimaryPanel): node is PrimaryArea {

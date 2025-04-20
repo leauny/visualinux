@@ -1,6 +1,6 @@
 import { createContext, useReducer } from "react";
 import Snapshots from "./Snapshots";
-import Panels, { SplitDirection } from "./Panels";
+import Panels, { DisplayOption, SplitDirection } from "./Panels";
 import { Snapshot, ViewAttrs } from "@app/visual/types";
 import { addLogTo, LogEntry, LogType } from "@app/utils";
 
@@ -13,16 +13,16 @@ class GlobalState {
         this.panels    = panels;
         this.logs      = logs;
     }
-    getPlotOfPanel(pKey: number) {
-        const viewname = this.panels.getViewname(pKey);
-        const view = this.snapshots.getView(viewname);
-        if (viewname === undefined || view === null) {
+    getPlot(displayed: DisplayOption) {
+        const snKey    = displayed.snKey;
+        const viewname = displayed.viewname;
+        const view = this.snapshots.getView(snKey, viewname);
+        if (view === null) {
             return { view: null, attrs: {} };
         }
-        const panelAttrs = this.panels.getViewAttrs(pKey);
         let attrs: ViewAttrs = {
             ...view.init_attrs,
-            ...panelAttrs
+            ...displayed.viewAttrs
         };
         return { view, attrs };
     }
@@ -41,10 +41,10 @@ const initialState = GlobalState.create();
 
 export type GlobalStateAction =
 | { command: 'NEW',    snKey: string, snapshot: Snapshot, pc: string, timestamp: string }
-| { command: 'USE',    snKey: string }
 | { command: 'DIFF',   snKeySrc: string, snKeyDst: string }
 | { command: 'SPLIT',  pKey: number, direction: SplitDirection }
 | { command: 'PICK',   pKey: number, objectKey: string }
+| { command: 'USE',    pKey: number, snKey: string }
 | { command: 'SWITCH', pKey: number, viewname: string }
 | { command: 'UPDATE', pKey: number, attrs: ViewAttrs }
 | { command: 'RESET',  pKey: number }
@@ -87,10 +87,6 @@ function globalStateDispatcher(state: GlobalState, action: GlobalStateAction) {
             state.log('info', `NEW ${action.snKey} ${action.snapshot.pc} ${action.snapshot.timestamp}`);
             state.snapshots.new(action.snKey, action.snapshot);
             return state.refresh();
-        case 'USE':
-            state.log('info', `USE ${action.snKey}`);
-            state.snapshots.use(action.snKey);
-            return state.refresh();
         case 'DIFF':
             state.log('info', `DIFF ${action.snKeySrc} ${action.snKeyDst}`);
             state.snapshots.diff(action.snKeySrc, action.snKeyDst);
@@ -102,6 +98,10 @@ function globalStateDispatcher(state: GlobalState, action: GlobalStateAction) {
         case 'PICK':
             state.log('info', `PICK ${action.pKey} ${action.objectKey}`);
             state.panels.pick(action.pKey, action.objectKey);
+            return state.refresh();
+        case 'USE':
+            state.log('info', `USE ${action.pKey} ${action.snKey}`);
+            state.panels.use(action.pKey, action.snKey);
             return state.refresh();
         case 'SWITCH':
             state.log('info', `SWITCH ${action.pKey} ${action.viewname}`);

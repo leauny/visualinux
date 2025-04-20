@@ -34,10 +34,11 @@ export function ButtonsWrapper({ children, direction, width }: {
     direction: "left" | "right",
     width?: number | string
 }) {
+    let marginStyles  = (direction == "left" ? "mr-auto"   : "ml-auto");
     let paddingStyles = (direction == "left" ? "pl-1 pr-0" : "pl-0 pr-1");
     if (!width) width = 'auto';
     return (
-        <div className={`flex flex-row items-center float-${direction}`}>
+        <div className={`flex flex-row flex-wrap items-center float-${direction} ${marginStyles}`}>
             {children ? [...children].map((child, i) => 
                 <div className={`column col-auto ${paddingStyles} py-1`} key={i}>
                     {child}

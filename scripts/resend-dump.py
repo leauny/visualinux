@@ -44,6 +44,7 @@ def main():
 
     send({
         'command': 'USE',
+        'pKey': 0,
         'snKey': 'diff-$foo_0-$foo_1',
     })
 
