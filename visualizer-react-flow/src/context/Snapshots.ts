@@ -2,6 +2,8 @@ import { calcSnapshotDiff } from "@app/visual/diff";
 import { Snapshot } from "@app/visual/types";
 import { preprocess } from "@app/visual/preprocess";
 
+// we use the word "snapshot" instead of "state" to avoid confusion with the React concept of "state"
+// this is actually the state diff mentioned in our paper/docs
 export default class Snapshots {
     data: Snapshot[]
     dataIndex: Map<string, number>

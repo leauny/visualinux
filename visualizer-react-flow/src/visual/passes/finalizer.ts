@@ -1,4 +1,4 @@
-import { ReactFlowGraph, ContainerNode } from "@app/visual/types";
+import { ReactFlowGraph, BoxNodeData, ContainerNode } from "@app/visual/types";
 import { RendererInternalState, RendererPass } from "@app/visual/passes";
 
 // a special pass that performs some breaking changes for final optimization
@@ -8,32 +8,29 @@ export class Finalizer extends RendererPass {
         return finalizer.render();
     }
     private finalGraph!: ReactFlowGraph;
+    private trimmedNodes!: Set<string>;
     public render() {
         this.finalGraph = {
             nodes: this.graph.nodes.map(node => ({ ...node })),
             edges: this.graph.edges.map(edge => ({ ...edge })),
         };
+        this.trimmedNodes = new Set();
         this.removeTrimmed();
         return this.finalGraph;
     }
     private removeTrimmed() {
-        let trimmedNodes = new Set<string>();
         for (const node of this.finalGraph.nodes) {
             if (node.data.trimmed) {
-                trimmedNodes.add(node.id);
+                this.trimmedNodes.add(node.id);
             }
         }
         for (let node of this.finalGraph.nodes) {
             if (node.type == 'box') {
-                for (let member of Object.values(node.data.members)) {
-                    if (member.class == 'link' && member.target !== null && trimmedNodes.has(member.target)) {
-                        member.isTargetTrimmed = true;
-                    }
-                }
+                node.data = this.removeTrimmedBoxNodeData(node.data);
             } else if (node.type == 'container') {
                 node.data = { ...node.data };
-                node.data.members = node.data.members.filter(member => member.key !== null && !trimmedNodes.has(member.key));
-                this.removeTrimmedContainerMembers(node, trimmedNodes);
+                node.data.members = node.data.members.filter(member => member.key !== null && !this.trimmedNodes.has(member.key));
+                this.removeTrimmedContainerMembers(node, this.trimmedNodes);
             }
         }
         this.finalGraph.nodes = this.finalGraph.nodes.filter(node => {
@@ -42,6 +39,27 @@ export class Finalizer extends RendererPass {
         this.finalGraph.edges = this.finalGraph.edges.filter(edge => {
             return !this.istat.getNode(edge.source).data.trimmed && !this.istat.getNode(edge.target).data.trimmed;
         });
+    }
+    private removeTrimmedBoxNodeData(nodeData: BoxNodeData) {
+        nodeData = { ...nodeData };
+        nodeData.members = { ...nodeData.members };
+        for (let label in nodeData.members) {
+            let member = nodeData.members[label];
+            if (member.class == 'link' && member.target !== null && this.trimmedNodes.has(member.target)) {
+                nodeData.members[label] = { ...nodeData.members[label] };
+                member = nodeData.members[label];
+                if (member.class === 'link') {
+                    member.isTargetTrimmed = true;
+                }
+            } else if (member.class == 'box') {
+                nodeData.members[label] = { ...nodeData.members[label] };
+                member = nodeData.members[label];
+                if (member.class === 'box') {
+                    member.data = this.removeTrimmedBoxNodeData(member.data);
+                }
+            }
+        }
+        return nodeData;
     }
     private removeTrimmedContainerMembers(node: ContainerNode, trimmedNodes: Set<string>) {
         if (node.data.trimmed) {

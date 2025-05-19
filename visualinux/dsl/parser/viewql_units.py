@@ -77,9 +77,9 @@ class Select:
         return self.format_string()
 
     def format_string(self, depth: int = 0) -> str:
-        basic = f'select {self.selector} from {self.scope}'
-        alias = f' as {self.alias}' if self.alias else ''
-        condition = f' where {self.condition}' if self.condition else ''
+        basic = f'select {self.selector!s} from {self.scope!s}'
+        alias = f' as {self.alias!s}' if self.alias else ''
+        condition = f' where {self.condition!s}' if self.condition else ''
         return padding(depth) + f'{self.object_set} = {basic}{alias}{condition}'
 
 @dataclass
@@ -93,7 +93,7 @@ class Update:
         return self.format_string()
 
     def format_string(self, depth: int = 0) -> str:
-        return padding(depth) + f'update {self.set_expr} with {self.attr_name}: {self.attr_value}'
+        return padding(depth) + f'update {self.set_expr!s} with {self.attr_name}: {self.attr_value}'
 
 ViewQLStmt = Select | Update
 

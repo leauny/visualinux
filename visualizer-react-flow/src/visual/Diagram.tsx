@@ -52,7 +52,6 @@ const ReactFlowDiagram = React.memo(({ displayed, updateSelected }: { displayed:
         if (view !== null) {
             setTimeout(() => {
                 let graph = renderer.create();
-                // @ts-ignore
                 const notifier = (id: string, rootId: string, type: string) => setShouldUpdate([id, rootId, type]);
                 graph.nodes = graph.nodes.map(node => {
                     if (node.type == 'box' || node.type == 'container') {

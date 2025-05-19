@@ -11,10 +11,10 @@ export class ClickTrimRefresher extends RefresherPass {
         return handler.render();
     }
     public render(): ReactFlowGraph {
-        console.log('ClickTrimRefresher.render()');
         if (this.updAttr != 'trimmed') {
             return this.graph;
         }
+        console.log('ClickTrimRefresher.render()');
         let trimmed: boolean | undefined = undefined;
         if (this.istat.hasNode(this.updId)) {
             let node = this.istat.getNode(this.updId);

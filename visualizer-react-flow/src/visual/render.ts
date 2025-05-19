@@ -2,7 +2,7 @@ import {
     StateView, ViewAttrs,
     ReactFlowGraph,
 } from "@app/visual/types";
-import { Converter } from "@app/visual/passes/converter";
+import { Converter } from "@app/visual/converter";
 import {
     RendererInternalState,
     AttrSetter,

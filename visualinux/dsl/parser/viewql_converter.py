@@ -110,8 +110,11 @@ class ViewQLConverter:
     def parse_expression(self, node: Token | Tree[Token]) -> Expression:
 
         if isinstance(node, Token):
-            assert node.type == 'ANY_EXPR'
-            return Expression(node.value, [])
+            if node.type == 'CONTAINER_TYPE':
+                return Expression(serialize(node), [])
+            if node.type == 'ANY_EXPR':
+                return Expression(node.value, [])
+            raise fuck_exc(UnexpectedTokenError, f'unknown expr: {node!s}')
 
         node_head = node.children[0]
         if isinstance(node_head, Token):

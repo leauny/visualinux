@@ -11,10 +11,10 @@ export class ClickCollapseRefresher extends RefresherPass {
         return handler.render();
     }
     public render(): ReactFlowGraph {
-        console.log('ClickCollapseHandler.render()');
         if (this.updAttr != 'collapsed') {
             return this.graph;
         }
+        console.log('ClickCollapseHandler.render()');
         EachIterator.traverse(this.istat, this.graph, 
             (data) => {
                 if (data.key == this.updId) {

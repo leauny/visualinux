@@ -104,20 +104,22 @@ export class Layouter extends RendererPass {
                 height += 16 * Math.max(labelLines.length, valueLines.length + oldvlLines.length);
                 continue;
             }
-            // handle non-primitive members
+            // handle non-primitive, i.e, box members
             if (member.data === undefined) {
                 console.error(`memberNode is undefined: ${member.object}`);
                 continue;
             }
             // estimate the member node size first
             let memberHeight = this._estimateBoxNodeHeight(member.data, depth + 1, isParentCollapsed || nodeData.collapsed === true);
-            // add necessary spaces to estimate the node size
-            let space = memberHeight + 8;
-            if (index > 0 && members[index - 1][1].class === 'box') {
-                space -= 3;
+            // add necessary spaces to estimate the node size (except for trimmed members)
+            if (memberHeight > 0) {
+                let space = memberHeight + 8;
+                if (index > 0 && members[index - 1][1].class === 'box') {
+                    space -= 3;
+                }
+                // finally estimated
+                height += space;
             }
-            // finally estimated
-            height += space;
         }
         // return
         if (isParentCollapsed) {
@@ -125,6 +127,9 @@ export class Layouter extends RendererPass {
         }
         if (nodeData.collapsed) {
             return sc.boxNodeHeightCollapsed;
+        }
+        if (nodeData.trimmed) {
+            return 0;
         }
         return height;
     }

@@ -23,12 +23,18 @@ function BoxField({
     const members = Object.entries(data.members).map(([label, member]) => {
         switch (member.class) {
             case 'box':
+                const boxField = (
+                    <BoxField
+                        id={member.object} data={member.data} depth={depth + 1}
+                        notifier={notifier} parentCollapsed={parentCollapsed || data.collapsed}
+                    />
+                );
+                if (member.data.trimmed) {
+                    return boxField;
+                }
                 return (
                     <div key={label} className="w-full p-1">
-                        <BoxField
-                            id={member.object} data={member.data} depth={depth + 1}
-                            notifier={notifier} parentCollapsed={parentCollapsed || data.collapsed}
-                        />
+                        {boxField}
                     </div>
                 );
             case 'text':
@@ -79,7 +85,7 @@ function BoxField({
     return (
         <div className={`box-node relative flex flex-col items-center rounded-md border-2 border-[${color}] bg-[${bgColor}]`}>
             <div className="w-full ml-2 flex justify-begin items-center z-10">
-                <FlipButton onClick={() => notifier(id, 'collapsed')} condition={data.collapsed} extraClassName={`mr-1 border-[${color}] text-[${color}]`}/>
+                <FlipButton onClick={() => notifier(id, 'collapsed')} condition={data.collapsed ?? false} extraClassName={`mr-1 border-[${color}] text-[${color}]`}/>
                 <p className={`h-6 text-base text-[${color}]`}>{data.label}</p>
             </div>
             {/* even if collapsed, members are required for reactflow edge rendering */}
@@ -115,12 +121,18 @@ function TextField({
         labelDelta, labelLines, valueLines, oldvlLines
     } = sc.TextFieldAdaption(label, value, diffOldValue, depth);
     const labelWidth = 100 - 4 * depth + 16 * Math.ceil(labelDelta / 2);
-    const color = diffOldValue === undefined ? "black" : sc.TextColorMod();
+    const colorOld = diffOldValue === undefined ? "black" : sc.TextColor(false);
+    const colorNew = diffOldValue === undefined ? "black" : sc.TextColor(true);
     const isValueEmoji = (value: string) => value.startsWith('&#') && value.endsWith(';');
     // label node
     const labelNode = (
         <div style={{width: `${labelWidth}px`}} className="px-1 flex items-center border-r-2 border-black">
-            <TextLine lines={labelLines} textClassName={`text-[${color}]`} />
+            <div className="flex flex-col w-full">
+                <TextLine lines={labelLines} textClassName={`text-[${colorOld}]`} />
+                {diffOldValue !== undefined &&
+                    <TextLine lines={labelLines} textClassName={`text-[${colorNew}]`} />
+                }
+            </div>
         </div>
     );
     // value node
@@ -129,13 +141,13 @@ function TextField({
             <div className="flex flex-col w-full">
                 {/* handle diff */}
                 {diffOldValue !== undefined &&
-                    <TextLine lines={oldvlLines} textClassName={`text-center text-[${color}] line-through`} />
+                    <TextLine lines={oldvlLines} textClassName={`text-center text-[${colorOld}] line-through`} />
                 }
                 {/* handle emoji text */}
                 {isValueEmoji(value) ?
-                    <p className={`text-center truncate text-[${color}]`} dangerouslySetInnerHTML={{__html: value}} />
+                    <p className={`text-center truncate`} dangerouslySetInnerHTML={{__html: value}} />
                 :
-                    <TextLine lines={valueLines} textClassName={`text-center text-[${color}]`} />
+                    <TextLine lines={valueLines} textClassName={`text-center text-[${colorNew}]`} />
                 }
             </div>
         </div>
@@ -160,15 +172,19 @@ function LinkField({
     const targetToValue = (target: string | null) => target ? target.split(':', 1)[0] : "null";
     const value = targetToValue(member.target);
     const diffOldValue = member.diffOldTarget === undefined ? undefined : targetToValue(member.diffOldTarget);
-    const color = diffOldValue === undefined ? "#000000" : sc.TextColorMod();
+    const colorOld = diffOldValue === undefined ? "#000000" : sc.TextColor(false);
+    const colorNew = diffOldValue === undefined ? "#000000" : sc.TextColor(true);
     const {
         labelDelta, labelLines, valueLines, oldvlLines
     } = sc.TextFieldAdaption(label, value, diffOldValue, depth);
     const labelWidth = 100 - 4 * depth + 16 * Math.ceil(labelDelta / 2);
     // label node
     const labelNode = (
-        <div style={{width: `${labelWidth}px`}} className="px-1 flex items-center border-r-2 border-black">
-            <TextLine lines={labelLines} textClassName={`text-[${color}]`} />
+        <div style={{width: `${labelWidth}px`}} className="px-1 flex flex-col items-center border-r-2 border-black">
+            <TextLine lines={labelLines} textClassName={`text-[${colorOld}]`} />
+            {diffOldValue !== undefined &&
+                <TextLine lines={labelLines} textClassName={`text-[${colorNew}]`} />
+            }
         </div>
     );
     // value node
@@ -177,20 +193,20 @@ function LinkField({
             <div className="flex flex-col w-full">
                 {diffOldValue !== undefined && 
                     <div className="flex flex-row w-full">
-                        <TextLine lines={oldvlLines} textClassName={`text-center text-[${color}] line-through`} />
+                        <TextLine lines={oldvlLines} textClassName={`text-center text-[${colorOld}] line-through`} />
                         {diffOldValue != "null" && diffOldValue != "(empty)" &&
-                            <FlipButton onClick={() => {console.log("diffOldValue clicked")}} condition={false} extraClassName={`border-[${color}] text-[${color}] opacity-0`} />
+                            <FlipButton onClick={() => {console.log("diffOldValue clicked")}} condition={false} extraClassName={`border-[${colorOld}] text-[${colorOld}] opacity-0`} />
                         }
                     </div>
                 }
                 <div className="flex flex-row w-full">
-                    <TextLine lines={valueLines} textClassName={`text-center text-[${color}]`} />
+                    <TextLine lines={valueLines} textClassName={`text-center text-[${colorNew}]`} />
                     {value != "null" && value != "(empty)" &&
                         <FlipButton onClick={() => {
                             if (member.target) {
                                 notifier(member.target, 'trimmed');
                             }
-                        }} condition={member.isTargetTrimmed} extraClassName={`border-[${color}] text-[${color}]`} />
+                        }} condition={member.isTargetTrimmed ?? false} extraClassName={`border-[${colorNew}] text-[${colorNew}]`} />
                     }
                 </div>
             </div>

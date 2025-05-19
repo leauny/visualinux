@@ -13,24 +13,49 @@ export class SubtreeIterator extends StateViewIterator {
         const iterator = new SubtreeIterator(istat, graph, fnBox, fnContainer, roots);
         iterator.traverse();
     }
+    private rootSet: Set<string> = new Set();
     public traverse() {
-        for (const root of this.roots) {
-            this.traverseNode(this.istat.getNode(root));
+        for (let root of this.roots) {
+            this.rootSet.add(root);
+        }
+        // for (let nodeData of Object.values(this.istat.boxNodeDataMap)) {
+        //     if (this.rootSet.has(nodeData.key)) {
+        //         this.traverseBox(nodeData, true);
+        //     }
+        // }
+        for (let node of Object.values(this.istat.nodeMap)) {
+            if (this.rootSet.has(node.id)) {
+                this.traverseNode(node, true);
+            }
+        }
+        // for (let root of this.roots) {
+        //     this.traverseNode(this.istat.getNode(root), false);
+        // }
+    //     for (let root of this.roots) {
+    //         this.rootSet.add(root);
+    //     }
+        for (let node of this.graph.nodes) {
+            this.traverseNode(node, false);
         }
     }
-    private traverseNode(node: BoxNode | ContainerNode) {
+    private traverseNode(node: BoxNode | ContainerNode, isInSubtree: boolean) {
         if (node.type == 'box') {
-            this.traverseBox(node.data);
+            this.traverseBox(node.data, isInSubtree);
         } else if (node.type == 'container') {
-            this.traverseContainer(node.data);
+            this.traverseContainer(node.data, isInSubtree);
         }
     }
-    private traverseBox(data: BoxNodeData) {
+    private traverseBox(data: BoxNodeData, isInSubtree: boolean) {
         if (this.visited.has(data.key)) {
             return;
         }
         this.visited.add(data.key);
-        this.fnBox(data);
+        if (this.rootSet.has(data.key)) {
+            isInSubtree = true;
+        }
+        if (isInSubtree) {
+            this.fnBox(data);
+        }
         for (let member of Object.values(data.members)) {
             let succKey: string | undefined;
             if (member.class == 'box') {
@@ -41,11 +66,11 @@ export class SubtreeIterator extends StateViewIterator {
             if (succKey !== undefined && succKey !== '(empty)') {
                 let succNode = this.istat.getNode(succKey);
                 if (succNode !== undefined) {
-                    this.traverseNode(succNode);
+                    this.traverseNode(succNode, isInSubtree);
                 } else {
                     let succNodeData = this.istat.getBoxNodeData(succKey);
                     if (succNodeData !== undefined) {
-                        this.traverseBox(succNodeData);
+                        this.traverseBox(succNodeData, isInSubtree);
                     } else {
                         throw new Error(`SubtreeIterator: succ node/nodedata ${succKey} not found`);
                     }
@@ -53,15 +78,20 @@ export class SubtreeIterator extends StateViewIterator {
             }
         }
     }
-    private traverseContainer(data: ContainerNodeData) {
+    private traverseContainer(data: ContainerNodeData, isInSubtree: boolean) {
         if (this.visited.has(data.key)) {
             return;
         }
         this.visited.add(data.key);
-        this.fnContainer(data);
+        if (this.rootSet.has(data.key)) {
+            isInSubtree = true;
+        }
+        if (isInSubtree) {
+            this.fnContainer(data);
+        }
         for (let member of data.members) {
             if (member.key !== null) {
-                this.traverseNode(this.istat.getNode(member.key));
+                this.traverseNode(this.istat.getNode(member.key), isInSubtree);
             }
         }
     }

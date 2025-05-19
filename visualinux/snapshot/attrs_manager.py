@@ -52,7 +52,7 @@ class ViewAttrsManager:
         }
         entry['$reachable'] = entry['$members']
         self.memdb.insert(entry)
-        self.memdb.table(entry['$type']).insert(entry)
+        self.memdb.table(container.type).insert(entry)
 
     def intp_viewql(self, viewql: ViewQLCode) -> None:
         scope: Scope = {}
@@ -96,11 +96,11 @@ class ViewAttrsManager:
         cond_query = self.__eval_cond_expr(scope, stmt.condition, stmt.alias) if stmt.condition else Query().noop()
 
         print(f'~~ {table.name=!s} {scope_query=!s} {cond_query=!s}')
-        # # Print all objects and their conditions for debugging
-        # for obj in table.all():
-        #     print(f'    ~~ obj: {obj}')
-        #     if cond_query != Query().noop():
-        #         print(f'    ~~ matches condition: {cond_query(obj)}')
+        # Print all objects and their conditions for debugging
+        for obj in table.all():
+            print(f'    ~~ obj: {obj}')
+            if cond_query != Query().noop():
+                print(f'    ~~ matches condition: {cond_query(obj)}')
         result = table.search(scope_query & cond_query)
         result_keys = set(obj['$key'] for obj in result)
         scope[stmt.object_set] = result_keys
@@ -148,6 +148,8 @@ class ViewAttrsManager:
             for suffix in cond.lhs.suffix:
                 lhs_query = lhs_query[suffix.identifier]
             rhs_value = cond.rhs.value()
+            if isinstance(rhs_value, str) and rhs_value.startswith('"') and rhs_value.endswith('"'):
+                rhs_value = rhs_value[1 : -1]
             if cond.opt == '>':  return lhs_query >  rhs_value
             if cond.opt == '<':  return lhs_query <  rhs_value
             if cond.opt == '>=': return lhs_query >= rhs_value
