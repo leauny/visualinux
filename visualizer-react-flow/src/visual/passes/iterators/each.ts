@@ -1,6 +1,10 @@
 import { StateViewIterator } from "@app/visual/passes/iterators/iterator";
 import { RendererInternalState } from "@app/visual/passes";
-import { ReactFlowGraph, BoxNodeData, ContainerNodeData } from "@app/visual/types";
+import {
+    ReactFlowGraph,
+    BoxNode, ContainerNode,
+    BoxNodeData, ContainerNodeData,
+} from "@app/visual/types";
 
 export class EachIterator extends StateViewIterator {
     public static traverse(
@@ -14,7 +18,7 @@ export class EachIterator extends StateViewIterator {
         iterator.traverse();
     }
     public traverse() {
-        this.graph.nodes.map(node => {
+        const getUpdatedNode = (node: BoxNode | ContainerNode) => {
             if (node.type == 'box') {
                 return {
                     ...node,
@@ -27,6 +31,11 @@ export class EachIterator extends StateViewIterator {
                 }
             }
             return { ...node };
+        };
+        this.graph.nodes = this.graph.nodes.map(node => {
+            const updatedNode = getUpdatedNode(node);
+            this.istat.nodeMap[node.id] = updatedNode;
+            return updatedNode;
         });
     }
     private traverseBox(data: BoxNodeData) {
@@ -39,6 +48,7 @@ export class EachIterator extends StateViewIterator {
                 };
             }
         }
+        this.istat.boxNodeDataMap[data.key] = updatedData;
         return updatedData;
     }
     private traverseContainer(data: ContainerNodeData) {

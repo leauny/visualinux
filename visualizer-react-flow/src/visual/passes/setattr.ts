@@ -48,12 +48,7 @@ export class AttrSetter extends RendererPass {
         )
     }
     private setTrimmed() {
-        // let trimmedNodes: string[] = [];
-        let trimmedNodes = this.graph.nodes.filter(
-            n => this.istat.getAttrs(n.id).trimmed == 'true'
-        ).map(
-            n => n.id
-        );
+        let trimmedNodes: string[] = [];
         for (const nodeData of Object.values(this.istat.boxNodeDataMap)) {
             if (this.istat.getAttrs(nodeData.key).trimmed == 'true') {
                 trimmedNodes.push(nodeData.key);
@@ -70,6 +65,5 @@ export class AttrSetter extends RendererPass {
             },
             trimmedNodes
         );
-        console.log('setTrimmed after traverse', this.graph);
     }
 }

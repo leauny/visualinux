@@ -18,22 +18,13 @@ export class SubtreeIterator extends StateViewIterator {
         for (let root of this.roots) {
             this.rootSet.add(root);
         }
-        // for (let nodeData of Object.values(this.istat.boxNodeDataMap)) {
-        //     if (this.rootSet.has(nodeData.key)) {
-        //         this.traverseBox(nodeData, true);
-        //     }
-        // }
-        for (let node of Object.values(this.istat.nodeMap)) {
+        // iterate twice to avoid multi-path-reachable should-be-trimmed nodes
+        // being visited before touched from trimmed ancestors
+        for (let node of this.graph.nodes) {
             if (this.rootSet.has(node.id)) {
                 this.traverseNode(node, true);
             }
         }
-        // for (let root of this.roots) {
-        //     this.traverseNode(this.istat.getNode(root), false);
-        // }
-    //     for (let root of this.roots) {
-    //         this.rootSet.add(root);
-    //     }
         for (let node of this.graph.nodes) {
             this.traverseNode(node, false);
         }
