@@ -41,14 +41,14 @@ function BoxField({
                 return (
                     <TextField
                         key={label} label={label} member={member} depth={depth}
-                        parentCollapsed={parentCollapsed || data.collapsed}
+                        parentCollapsed={parentCollapsed || data.collapsed} isShadow={data.shadow}
                     />
                 );
             case 'link':
                 return (
                     <LinkField
                         key={label} label={label} member={member} depth={depth}
-                        parentCollapsed={parentCollapsed || data.collapsed}
+                        parentCollapsed={parentCollapsed || data.collapsed} isShadow={data.shadow}
                         edgeSource={`${id}.${label}`} notifier={notifier}
                     />
                 );
@@ -81,12 +81,15 @@ function BoxField({
     }
     // component definition
     const color = sc.TextColor(data.isDiffAdd);
+    const txStyle = data.shadow ? 'opacity-80' : '';
+    const bdStyle = data.shadow ? 'border-dotted' : '';
     const bgColor = sc.BgColor(depth, data.isDiffAdd);
+    const bgStyle = data.shadow ? 'bg-gradient-to-bl from-gray-100/70 to-gray-300/70' : `bg-[${bgColor}]`;
     return (
-        <div className={`box-node relative flex flex-col items-center rounded-md border-2 border-[${color}] bg-[${bgColor}]`}>
+        <div className={`box-node relative flex flex-col items-center rounded-md border-2 border-[${color}] ${bdStyle} ${bgStyle}`}>
             <div className="w-full ml-2 flex justify-begin items-center z-10">
-                <FlipButton onClick={() => notifier(id, 'collapsed')} condition={data.collapsed ?? false} extraClassName={`mr-1 border-[${color}] text-[${color}]`}/>
-                <p className={`h-6 text-base text-[${color}]`}>{data.label}</p>
+                <FlipButton onClick={() => notifier(id, 'collapsed')} condition={data.collapsed ?? false} extraClassName={`mr-1 border-[${color}] ${bdStyle} text-[${color}] ${txStyle}`}/>
+                <p className={`h-6 text-base text-[${color}] ${txStyle}`}>{data.label}</p>
             </div>
             {/* even if collapsed, members are required for reactflow edge rendering */}
             {data.collapsed ? (
@@ -95,11 +98,11 @@ function BoxField({
                 </div>
             ) : (
                 <div className="w-full overflow-hidden">
-                    <div className="border-y border-black">
+                    <div className={`border-y border-black ${bdStyle}`}>
                         {members}
                     </div>
                     <div className="w-full flex justify-end">
-                        <p className={`mr-1 text-sm text-[${color}]`}>{data.addr}</p>
+                        <p className={`mr-1 text-sm text-[${color}] ${txStyle}`}>{data.addr}</p>
                     </div>
                 </div>
             )}
@@ -109,9 +112,9 @@ function BoxField({
 }
 
 function TextField({
-    label, member, depth, parentCollapsed
+    label, member, depth, parentCollapsed, isShadow
 }: {
-    label: string, member: TextMember, depth: number, parentCollapsed?: boolean
+    label: string, member: TextMember, depth: number, parentCollapsed?: boolean, isShadow?: boolean
 }) {
     if (parentCollapsed) return <></>;
     // data conversion and style config
@@ -124,13 +127,15 @@ function TextField({
     const colorOld = diffOldValue === undefined ? "black" : sc.TextColor(false);
     const colorNew = diffOldValue === undefined ? "black" : sc.TextColor(true);
     const isValueEmoji = (value: string) => value.startsWith('&#') && value.endsWith(';');
+    const txStyle = isShadow ? 'opacity-80' : '';
+    const bdStyle = isShadow ? 'border-dotted' : '';
     // label node
     const labelNode = (
-        <div style={{width: `${labelWidth}px`}} className="px-1 flex items-center border-r-2 border-black">
+        <div style={{width: `${labelWidth}px`}} className={`px-1 flex items-center border-r-2 border-black ${bdStyle}`}>
             <div className="flex flex-col w-full">
-                <TextLine lines={labelLines} textClassName={`text-[${colorOld}]`} />
+                <TextLine lines={labelLines} textClassName={`text-[${colorOld}] ${txStyle}`} />
                 {diffOldValue !== undefined &&
-                    <TextLine lines={labelLines} textClassName={`text-[${colorNew}]`} />
+                    <TextLine lines={labelLines} textClassName={`text-[${colorNew}] ${txStyle}`} />
                 }
             </div>
         </div>
@@ -141,28 +146,28 @@ function TextField({
             <div className="flex flex-col w-full">
                 {/* handle diff */}
                 {diffOldValue !== undefined &&
-                    <TextLine lines={oldvlLines} textClassName={`text-center text-[${colorOld}] line-through`} />
+                    <TextLine lines={oldvlLines} textClassName={`text-center text-[${colorOld}] ${txStyle} line-through`} />
                 }
                 {/* handle emoji text */}
                 {isValueEmoji(value) ?
                     <p className={`text-center truncate`} dangerouslySetInnerHTML={{__html: value}} />
                 :
-                    <TextLine lines={valueLines} textClassName={`text-center text-[${colorNew}]`} />
+                    <TextLine lines={valueLines} textClassName={`text-center text-[${colorNew}] ${txStyle}`} />
                 }
             </div>
         </div>
     );
     // return
     return (
-        <PrimitiveField label={labelNode} value={valueNode}/>
+        <PrimitiveField label={labelNode} value={valueNode} isShadow={isShadow}/>
     );
 }
 
 function LinkField({
-    label, member, depth, parentCollapsed,
+    label, member, depth, parentCollapsed, isShadow,
     edgeSource, notifier
 }: {
-    label: string, member: LinkMember, depth: number, parentCollapsed?: boolean,
+    label: string, member: LinkMember, depth: number, parentCollapsed?: boolean, isShadow?: boolean,
     edgeSource: string, notifier: (id: string, type: string) => void
 }) {
     // edge handle
@@ -174,16 +179,18 @@ function LinkField({
     const diffOldValue = member.diffOldTarget === undefined ? undefined : targetToValue(member.diffOldTarget);
     const colorOld = diffOldValue === undefined ? "#000000" : sc.TextColor(false);
     const colorNew = diffOldValue === undefined ? "#000000" : sc.TextColor(true);
+    const txStyle = isShadow ? 'opacity-80' : '';
+    const bdStyle = isShadow ? 'border-dotted' : '';
     const {
         labelDelta, labelLines, valueLines, oldvlLines
     } = sc.TextFieldAdaption(label, value, diffOldValue, depth);
     const labelWidth = 100 - 4 * depth + 16 * Math.ceil(labelDelta / 2);
     // label node
     const labelNode = (
-        <div style={{width: `${labelWidth}px`}} className="px-1 flex flex-col items-center border-r-2 border-black">
-            <TextLine lines={labelLines} textClassName={`text-[${colorOld}]`} />
+        <div style={{width: `${labelWidth}px`}} className={`px-1 flex flex-col items-center border-r-2 border-black ${bdStyle}`}>
+            <TextLine lines={labelLines} textClassName={`text-[${colorOld}] ${txStyle}`} />
             {diffOldValue !== undefined &&
-                <TextLine lines={labelLines} textClassName={`text-[${colorNew}]`} />
+                <TextLine lines={labelLines} textClassName={`text-[${colorNew}] ${txStyle}`} />
             }
         </div>
     );
@@ -193,20 +200,20 @@ function LinkField({
             <div className="flex flex-col w-full">
                 {diffOldValue !== undefined && 
                     <div className="flex flex-row w-full">
-                        <TextLine lines={oldvlLines} textClassName={`text-center text-[${colorOld}] line-through`} />
+                        <TextLine lines={oldvlLines} textClassName={`text-center text-[${colorOld}] ${txStyle} line-through`} />
                         {diffOldValue != "null" && diffOldValue != "(empty)" &&
-                            <FlipButton onClick={() => {console.log("diffOldValue clicked")}} condition={false} extraClassName={`border-[${colorOld}] text-[${colorOld}] opacity-0`} />
+                            <FlipButton onClick={() => {console.log("diffOldValue clicked")}} condition={false} extraClassName={`border-[${colorOld}] ${bdStyle} text-[${colorOld}] ${txStyle} opacity-0`} />
                         }
                     </div>
                 }
                 <div className="flex flex-row w-full">
-                    <TextLine lines={valueLines} textClassName={`text-center text-[${colorNew}]`} />
+                    <TextLine lines={valueLines} textClassName={`text-center text-[${colorNew}] ${txStyle}`} />
                     {value != "null" && value != "(empty)" &&
                         <FlipButton onClick={() => {
                             if (member.target) {
                                 notifier(member.target, 'trimmed');
                             }
-                        }} condition={member.isTargetTrimmed ?? false} extraClassName={`border-[${colorNew}] text-[${colorNew}]`} />
+                        }} condition={member.isTargetTrimmed ?? false} extraClassName={`border-[${colorNew}] ${bdStyle} text-[${colorNew}] ${txStyle}`} />
                     }
                 </div>
             </div>
@@ -214,17 +221,18 @@ function LinkField({
     );
     // return
     return (
-        <PrimitiveField label={labelNode} value={valueNode} edgeHandle={edgeHandle}/>
+        <PrimitiveField label={labelNode} value={valueNode} edgeHandle={edgeHandle} isShadow={isShadow}/>
     );
 }
 
 function PrimitiveField({
-    label, value, edgeHandle
+    label, value, edgeHandle, isShadow
 }: {
-    label: React.JSX.Element, value: React.JSX.Element, edgeHandle?: React.JSX.Element
+    label: React.JSX.Element, value: React.JSX.Element, edgeHandle?: React.JSX.Element, isShadow?: boolean
 }) {
+    const bdStyle = isShadow ? 'border-dotted' : '';
     return (
-        <div className={`relative w-full border-y border-black`}>
+        <div className={`relative w-full border-y border-black ${bdStyle}`}>
             <div className="w-full flex items-stretch leading-none">
                 {label}
                 {value}

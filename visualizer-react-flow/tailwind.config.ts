@@ -29,6 +29,7 @@ const config: Config = {
     ...(diffChoices.map(v => 
       `bg-[${sc.BgColorContainer(v)}]`,
     )),
+    'border-dotted',
     // 'bg-[#FCFFFC]', 'bg-[#FBFFFB]', 'bg-[#F0FFF0]', 'bg-[#ECFFEC]', 
     // 'bg-[#FFFCFC]', 'bg-[#FFFBFB]', 'bg-[#FFF0F0]', 'bg-[#FFECEC]',
     // 'border-[#228B22]', 'border-[#DC143C]',

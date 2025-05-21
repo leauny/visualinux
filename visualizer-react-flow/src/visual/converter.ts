@@ -17,6 +17,7 @@ export class Converter {
     private istat: RendererInternalState;
     private view:  StateView;
     private graph: ReactFlowGraph;
+    private containerMemberMap: Record<string, string> = {};
     constructor(istat: RendererInternalState) {
         this.istat  = istat;
         this.view   = istat.view;
@@ -206,58 +207,9 @@ export class Converter {
         if (!this.istat.isShapeOutmost(container.key)) {
             return;
         }
-        console.log('convertContainer', container.key, '?p', container.parent);
+        console.log('convertContainer', container.key, container);
         // avoid redundant conversion
         if (this.istat.nodeMap[container.key] !== undefined) {
-            return;
-        }
-        // compact array-like containers
-        if (false && shouldCompactContainer(container)) {
-            // const compactedMembers = Object.fromEntries(
-            //     container.members.filter(member => member.key !== null)
-            //     .map(member => {
-            //         const shape = this.getShape(member.key as string);
-            //         const tryCompactMember = () => {
-            //             if (isShapeBox(shape) && shape.addr == 'virtual' && Object.keys(shape.absts).length == 1) {
-            //                 const memberMembers = Object.entries(shape.absts['default'].members);
-            //                 if (memberMembers.length == 1) {
-            //                     return memberMembers[0];
-            //                 }
-            //             }
-            //             return null;
-            //         }
-            //         const compactedMember = tryCompactMember();
-            //         if (compactedMember !== null) {
-            //             return compactedMember;
-            //         } else {
-            //             return [member.key, {
-            //                 class: 'box',
-            //                 object: member.key,
-            //             }];
-            //         }
-            //     })
-            // );
-            const compacted: Box = {
-                key: container.key,
-                type: container.type, addr: container.addr, label: container.label, 
-                parent: container.parent,
-                absts: {
-                    default: {
-                        members: Object.fromEntries(container.members
-                            .filter(member => member.key !== null)
-                            .map(member => [
-                                member.key, {
-                                    class: 'box',
-                                    object: member.key,
-                                }
-                            ])
-                        ),
-                        parent: null
-                    }
-                },
-                isDiffAdd: container.isDiffAdd,
-            }
-            this.convertBox(compacted);
             return;
         }
         // generate the node
@@ -277,11 +229,31 @@ export class Converter {
         this.istat.nodeMap[node.id] = node;
         this.graph.nodes.push(node);
         // convert its members
-        for (const member of node.data.members) {
+        for (let [index, member] of node.data.members.entries()) {
+            console.log('--member', member.key, member);
             if (member.key === null) {
                 continue;
             }
-            this.convertShape(member.key);
+            if (member.key in this.containerMemberMap) {
+                // create shadow for co-managed objects
+                const shadowKey = this.createShadowBoxFor(member.key, node.id);
+                node.data.members[index] = {
+                    key: shadowKey,
+                    links: Object.fromEntries(
+                        Object.entries(member.links).map(([label, link]) => {
+                            const newLink = { ...link };
+                            if (newLink.target == member.key) newLink.target = shadowKey;
+                            if (newLink.diffOldTarget == member.key) newLink.diffOldTarget = shadowKey;
+                            return [label, newLink];
+                        })
+                    )
+                };
+                member = node.data.members[index];
+                member.key = shadowKey;
+            } else {
+                this.containerMemberMap[member.key] = container.key;
+                this.convertShape(member.key);
+            }
             const memberNode = this.istat.nodeMap[member.key];
             if (memberNode === undefined) {
                 console.error(`container ${container.key} memberNode undefined: ${member.key}`);
@@ -290,6 +262,10 @@ export class Converter {
             if (memberNode.type != 'box') {
                 continue;
             }
+            // reassign the parent to preprocess for the potential shadow nodes
+            memberNode.data.parent = container.key;
+            memberNode.parentId = memberNode.data.parent;
+            // construct intra-container links
             for (const [label, link] of Object.entries(member.links)) {
                 if (label in memberNode.data.members) {
                     continue;
@@ -332,6 +308,34 @@ export class Converter {
                 }
             }
         }
+    }
+    private createShadowBoxFor(memberKey: string, containerKey: string) {
+        let memberNode = this.istat.getNode(memberKey);
+        if (memberNode.type !== 'box') {
+            throw new Error(`Shadower.render(): member is not a box: ${memberKey}`);
+        }
+        let containerNode = this.istat.getNode(containerKey);
+        if (containerNode.type !== 'container') {
+            throw new Error(`Shadower.render(): parent is not a container: ${containerKey}`);
+        }
+        // deep copy and rewrite to create a shadow node
+        let shadowKey = `${memberKey}$shadow0`;
+        for (let i = 1; this.istat.nodeMap[shadowKey] !== undefined; i ++) {
+            shadowKey = `${memberKey}$shadow${i}`;
+        }
+        console.log('shadow', '->', shadowKey);
+        const shadowNode: BoxNode = JSON.parse(JSON.stringify(memberNode));
+        shadowNode.id = shadowKey;
+        shadowNode.parentId = containerKey;
+        shadowNode.data.key = shadowKey;
+        shadowNode.data.parent = containerKey;
+        shadowNode.data.shadow = true;
+        // update metadata
+        this.istat.nodeMap[shadowNode.id] = shadowNode;
+        this.istat.boxNodeDataMap[shadowNode.id] = shadowNode.data;
+        this.graph.nodes.push(shadowNode);
+        // return
+        return shadowKey;
     }
 }
 

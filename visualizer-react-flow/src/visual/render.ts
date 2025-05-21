@@ -11,15 +11,15 @@ import {
 } from "@app/visual/passes";
 
 export class Renderer {
-    private state!: RendererInternalState;
-    private graph!: ReactFlowGraph;
+    private state: RendererInternalState;
+    private graph: ReactFlowGraph;
     constructor(view: StateView | null, attrs: ViewAttrs) {
+        this.state = {} as RendererInternalState;
+        this.graph = { nodes: [], edges: [] };
         this.reset(view, attrs);
     }
     public reset(view: StateView | null, attrs: ViewAttrs) {
-        if (view === null) {
-            this.graph = { nodes: [], edges: [] };
-        } else {
+        if (view != null) {
             this.state = new RendererInternalState(view, attrs);
             this.graph = Converter.convert(this.state);
         }

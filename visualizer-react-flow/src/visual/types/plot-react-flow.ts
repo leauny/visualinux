@@ -42,12 +42,13 @@ type BoxNodeMember =
     } & ShapeDiffInfo)
 
 export type BoxNodeData = {
-    key:      string
-    type:     string
-    addr:     string
-    label:    string
-    members:  {[label: string]: BoxNodeMember}
-    parent:   string | null
+    key:     string
+    type:    string
+    addr:    string
+    label:   string
+    members: {[label: string]: BoxNodeMember}
+    parent:  string | null
+    shadow?: boolean
 } & ShapeDiffInfo & BoxNodeMetadata
 
 export type ContainerNodeData = {

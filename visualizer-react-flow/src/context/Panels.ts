@@ -49,42 +49,20 @@ export default class Panels {
         }
     }
     use(pKey: number, snKey: string) {
-        let node = this.find(pKey);
-        if (node === undefined) {
-            throw new Error(`panels.use(): failed to find panel #${pKey}.`);
-        }
-        node.snKey = snKey;
+        let node = this.findAndCheck(pKey);
+        node.changeSnapshot(snKey);
     }
     switch(pKey: number, viewname: string | undefined) {
-        let node = this.find(pKey);
-        if (node === undefined) {
-            throw new Error(`panels.switch(): failed to find panel #${pKey}.`);
-        }
-        node.viewname = viewname;
+        let node = this.findAndCheck(pKey);
+        node.changeViewname(viewname);
     }
     update(pKey: number, attrs: ViewAttrs) {
-        // TODO: merge find functions
-        let node = this.find(pKey);
-        if (node === undefined) {
-            throw new Error(`panels.update(): failed to find panel #${pKey}.`);
-        }
-        if (node.viewname === undefined) {
-            throw new Error(`panels.update(): viewname is not set on panel #${pKey}.`);
-        }
-        node.viewAttrs[node.viewname] = {
-            ...node.viewAttrs[node.viewname] || {},
-            ...attrs
-        };
+        let node = this.findAndCheck(pKey);
+        node.updateCurrentViewAttrs(attrs);
     }
     reset(pKey: number) {
-        let node = this.find(pKey);
-        if (node === undefined) {
-            throw new Error(`panels.update(): failed to find panel #${pKey}.`);
-        }
-        if (node.viewname === undefined) {
-            throw new Error(`panels.update(): viewname is not set on panel #${pKey}.`);
-        }
-        node.viewAttrs[node.viewname] = {};
+        let node = this.findAndCheck(pKey);
+        node.resetCurrentViewAttrs({});
     }
     focus(objectKey: string) {
         this.root.focus(objectKey);
@@ -115,44 +93,17 @@ export default class Panels {
     // other APIs
     //
     getDisplayed(pKey: number): DisplayOption {
-        let node = this.find(pKey);
-        if (node === undefined) {
-            throw new Error(`panels.getDisplayed(): panel #${pKey} not found`);
-        }
-        return node.displayed;
-    }
-    setSnapshot(pKey: number, snKey: string) {
-        let node = this.find(pKey);
-        if (node === undefined) {
-            throw new Error(`panels.setSnapshot(): panel #${pKey} not found`);
-        }
-        node.snKey = snKey;
-    }
-    getSnapshot(pKey: number): string | undefined {
-        return this.find(pKey)?.displayed.snKey;
-    }
-    setViewname(pKey: number, viewname: string | undefined) {
-        let node = this.find(pKey);
-        if (node === undefined) {
-            throw new Error(`panels.setViewname(): panel #${pKey} not found`);
-        }
-        node.viewname = viewname;
+        return this.findAndCheck(pKey).displayed;
     }
     getViewname(pKey: number): string | undefined {
-        return this.find(pKey)?.viewname;
-    }
-    setViewAttrs(pKey: number, attrs: ViewAttrs) {
-        let node = this.find(pKey);
-        if (node === undefined) {
-            throw new Error(`panels.setViewname(): panel #${pKey} not found`);
-        }
-        if (node.viewname) {
-            node.viewAttrs[node.viewname] = attrs;
-        }
+        return this.findAndCheck(pKey).getCurrentViewname();
     }
     getViewAttrs(pKey: number): ViewAttrs {
         let node = this.find(pKey);
-        return node && node.viewname ? node.viewAttrs[node.viewname] : {};
+        if (node && node.getCurrentViewname()) {
+            return node.getCurrentViewAttrs();
+        }
+        return {};
     }
     getObjectSelected(pKey: number, isPrimary: boolean = true): string | undefined {
         // we assume that diagram.maxSelected == 1.
@@ -160,10 +111,7 @@ export default class Panels {
         return undefined;
     }
     isRemovable(pKey: number) {
-        let node = this.find(pKey);
-        if (node === undefined) {
-            throw new Error(`panels.isRemovable(): failed to find panel with key=${pKey}.`);
-        }
+        let node = this.findAndCheck(pKey);
         return this.isNodeRemovable(node);
     }
     //
@@ -173,6 +121,13 @@ export default class Panels {
         // find the primary panel with the given key
         // Since there are at most a few dozen windows, a brute-force DFS is sufficient.
         return this.root.find(pKey);
+    }
+    private findAndCheck(pKey: number) {
+        let node = this.find(pKey);
+        if (node === undefined) {
+            throw new Error(`panels.findAndCheck(): failed to find panel with key=${pKey}.`);
+        }
+        return node;
     }
     private isNodeRemovable(node: PrimaryPanel) {
         let parent = node.parent;
@@ -245,9 +200,9 @@ export class PrimaryArea {
         // otherwise, a new area is created to replace the splitted window.
         if (this.direction == direction) {
             let splitted = new PrimaryPanel(this);
-            splitted.snKey = child.snKey;
-            splitted.viewname = child.viewname;
-            splitted.viewAttrs = { ...child.viewAttrs };
+            splitted.changeSnapshot(child.getCurrentSnapshot());
+            splitted.changeViewname(child.getCurrentViewname());
+            splitted.resetCurrentViewAttrs(child.getCurrentViewAttrs());
             // this.children.splice(isForward ? index : index + 1, 0, splitted);
             this.children.splice(index + 1, 0, splitted);
         } else {
@@ -280,14 +235,15 @@ abstract class Panel {
         if (!this.diagramRef) {
             return;
         }
-        let diagram = this.diagramRef?.current?.getDiagram();
-        if (diagram) {
-            let node = diagram.findNodeForKey(objectKey);
-            if (node) {
-                diagram.selectCollection([node]);
-                diagram.centerRect(node.actualBounds);
-            }
-        }
+        console.warn('Panel.focus() is not implemented.');
+        // let diagram = this.diagramRef?.current?.getDiagram();
+        // if (diagram) {
+        //     let node = diagram.findNodeForKey(objectKey);
+        //     if (node) {
+        //         diagram.selectCollection([node]);
+        //         diagram.centerRect(node.actualBounds);
+        //     }
+        // }
     }
 }
 
@@ -318,6 +274,31 @@ export class PrimaryPanel extends Panel {
             displayed.viewAttrs = this.viewAttrs[this.viewname];
         }
         return displayed;
+    }
+    public getCurrentSnapshot = (): string | undefined => this.snKey;
+    public getCurrentViewname = (): string | undefined => this.viewname;
+    public changeSnapshot = (snKey: string | undefined) => this.snKey = snKey;
+    public changeViewname = (viewname: string | undefined) => this.viewname = viewname;
+    public getCurrentViewAttrs(): ViewAttrs {
+        if (this.viewname === undefined) {
+            throw new Error(`panel.getAttrs(): viewname is not set on panel #${this.key}.`);
+        }
+        return this.viewAttrs[this.viewname];
+    }
+    public updateCurrentViewAttrs(attrs: ViewAttrs) {
+        if (this.viewname === undefined) {
+            throw new Error(`panel.updateAttrs(): viewname is not set on panel #${this.key}.`);
+        }
+        this.viewAttrs[this.viewname] = {
+            ...this.viewAttrs[this.viewname] || {},
+            ...attrs
+        };
+    }
+    public resetCurrentViewAttrs(attrs: ViewAttrs) {
+        if (this.viewname === undefined) {
+            throw new Error(`panel.reset(): viewname is not set on panel #${this.key}.`);
+        }
+        this.viewAttrs[this.viewname] = { ...attrs };
     }
     public split(direction: SplitDirection) {
         this.parent.split(this.key, direction);
