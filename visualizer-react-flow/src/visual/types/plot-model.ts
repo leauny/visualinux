@@ -1,15 +1,3 @@
-// diff extension
-
-export type ShapeDiffInfo = {
-    isDiffAdd?: boolean
-}
-
-export type MemberDiffInfo = {
-    diffOldValue?: string
-    diffOldTarget?: ShapeKey | null
-    diffOldObject?: ShapeKey
-}
-
 // json type of diagrams received from the gdb stub
 
 export type Snapshot = {
@@ -126,7 +114,7 @@ export type Box = {
     label:  string
     absts:  {[name: AbstName]: Abst}
     parent: ShapeKey | null
-} & ShapeDiffInfo
+}
 
 export type Abst = {
     parent: string | null
@@ -140,16 +128,16 @@ export type TextMember = {
     type:  string
     size:  number
     value: string
-} & MemberDiffInfo
+}
 export type LinkMember = {
     class:  'link'
     type:   'DIRECT' | 'REMOTE'
     target: ShapeKey | null
-} & MemberDiffInfo
+}
 export type BoxMember = {
     class:  'box'
     object: ShapeKey
-} & MemberDiffInfo
+}
 
 export type Container = {
     key:     ShapeKey
@@ -158,12 +146,12 @@ export type Container = {
     label:   string
     members: ContainerMember[]
     parent:  ShapeKey | null
-} & ShapeDiffInfo
+}
 
 export type ContainerMember = {
     key:  ShapeKey | null
     links: {[label: Label]: LinkMember}
-} & ShapeDiffInfo
+}
 
 export function isShapeBox(shape: Box | Container): shape is Box {
     return (shape as Box).absts !== undefined;

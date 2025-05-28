@@ -153,8 +153,7 @@ class ViewPreprocessor {
                     members: compactedMembers,
                     parent: null
                 }
-            },
-            isDiffAdd: container.isDiffAdd,
+            }
         }
         delete this.view.pool.containers[container.key];
         this.view.pool.boxes[compacted.key] = compacted;

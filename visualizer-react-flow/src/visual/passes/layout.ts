@@ -87,21 +87,15 @@ export class Layouter extends RendererPass {
             const [label, member] = members[index];
             // estimation for primitive members
             if (member.class === "text" || member.class === "link") {
-                let value, oldvl;
+                let value;
                 if (member.class === "text") {
                     value = member.value;
-                    if (member.diffOldValue !== undefined) {
-                        oldvl = member.diffOldValue;
-                    }
                 } else {
                     value = member.target?.split(':')[0] || "null";
-                    if (member.diffOldTarget !== undefined) {
-                        oldvl = member.diffOldTarget?.split(':')[0] || "null";
-                    }
                 }
-                const { labelLines, valueLines, oldvlLines } = sc.TextFieldAdaption(label, value, oldvl, depth);
+                const { labelLines, valueLines } = sc.TextFieldAdaption(label, value, depth);
                 height += 2 * sc.textPadding;
-                height += 16 * Math.max(labelLines.length, valueLines.length + oldvlLines.length);
+                height += 16 * Math.max(labelLines.length, valueLines.length);
                 continue;
             }
             // handle non-primitive, i.e, box members
@@ -159,13 +153,6 @@ export class Layouter extends RendererPass {
                         id: `${member.key}.${label}`,
                         source: member.key,
                         target: link.target,
-                    });
-                }
-                if (link.diffOldTarget !== undefined && link.diffOldTarget !== null) {
-                    memberEdges.push({
-                        id: `${member.key}.${label}.diff`,
-                        source: member.key,
-                        target: link.diffOldTarget,
                     });
                 }
             }

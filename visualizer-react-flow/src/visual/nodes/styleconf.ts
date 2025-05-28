@@ -56,17 +56,13 @@ const TextSplit = (text: string, charPerLine: number) => {
 }
 
 // for better visualization effect, try the best to avoid newline in label
-export const TextFieldAdaption = (label: string, value: string, oldvl: string | undefined, depth: number) => {
+export const TextFieldAdaption = (label: string, value: string, depth: number) => {
     // original lines situ
     let labelCPL = labelBaseCPL - depth;
     let valueCPL = valueBaseCPL - depth;
     let labelLines = TextSplit(label, labelCPL);
     let valueLines = TextSplit(value, valueCPL);
-    let oldvlLines = oldvl ? TextSplit(oldvl, valueCPL) : [];
-    let valueMaxLen = Math.max(
-        ...valueLines.map(line => line.length),
-        ...oldvlLines.map(line => line.length),
-    );
+    let valueMaxLen = Math.max(...valueLines.map(line => line.length));
     // maximize labelCPL while value line count is not affected
     let labelDelta = 0;
     if (labelLines.length > 1 && valueMaxLen < valueCPL) {
@@ -80,13 +76,12 @@ export const TextFieldAdaption = (label: string, value: string, oldvl: string | 
             valueCPL = valueMaxLen;
             labelLines = newLabelLines;
             valueLines = TextSplit(value, valueCPL);
-            oldvlLines = oldvl ? TextSplit(oldvl, valueCPL) : [];
         } else {
             labelDelta = 0;
         }
     }
     // return
-    return { labelDelta, labelLines, valueLines, oldvlLines };
+    return { labelDelta, labelLines, valueLines };
 };
 
 //// node size

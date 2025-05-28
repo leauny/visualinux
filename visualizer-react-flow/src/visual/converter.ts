@@ -113,7 +113,6 @@ export class Converter {
             type: box.type, addr: box.addr, label: box.label,
             members: this.convertBoxMembers(box, abst),
             parent: box.parent,
-            isDiffAdd: box.isDiffAdd,
         };
         this.istat.boxNodeDataMap[box.key] = data;
         return data;
@@ -130,7 +129,6 @@ export class Converter {
             type: container.type, addr: container.addr, label: container.label,
             members: {},
             parent: container.parent,
-            isDiffAdd: container.isDiffAdd,
         };
         for (const member of container.members) {
             if (member.key !== null) {
@@ -139,7 +137,6 @@ export class Converter {
                     class: 'box',
                     object: member.key,
                     data: memberData,
-                    isDiffAdd: member.isDiffAdd,
                 };
             }
         }
@@ -176,16 +173,11 @@ export class Converter {
                     this.convertShape(edge.target);
                     return target;
                 }
-                if (member.diffOldTarget !== undefined && member.diffOldTarget !== null) {
-                    member.diffOldTarget = convertLinkTarget(member.diffOldTarget, false);
-                }
                 if (member.target !== null) {
-                    let isEdgeDiffAdd = undefined;
-                    if (member.diffOldTarget !== undefined) {
-                        isEdgeDiffAdd = true;
-                    }
-                    if (box.isDiffAdd !== undefined) {
-                        isEdgeDiffAdd = box.isDiffAdd;
+                    let isEdgeDiffAdd = label.endsWith('$new') ? true : (label.endsWith('$old') ? false : undefined);
+                    let isBoxDiffAdd = box.key.endsWith('$new') ? true : (box.key.endsWith('$old') ? false : undefined);
+                    if (isBoxDiffAdd !== undefined) {
+                        isEdgeDiffAdd = isBoxDiffAdd;
                     }
                     member.target = convertLinkTarget(member.target, isEdgeDiffAdd);
                 }
@@ -221,7 +213,6 @@ export class Converter {
                 type: container.type, addr: container.addr, label: container.label,
                 members: Object.values(container.members).filter(member => member.key !== null),
                 parent: container.parent,
-                isDiffAdd: container.isDiffAdd,
             },
             position: { x: 0, y: 0 },
             draggable: false,
@@ -230,7 +221,6 @@ export class Converter {
         this.graph.nodes.push(node);
         // convert its members
         for (let [index, member] of node.data.members.entries()) {
-            console.log('--member', member.key, member);
             if (member.key === null) {
                 continue;
             }
@@ -243,7 +233,6 @@ export class Converter {
                         Object.entries(member.links).map(([label, link]) => {
                             const newLink = { ...link };
                             if (newLink.target == member.key) newLink.target = shadowKey;
-                            if (newLink.diffOldTarget == member.key) newLink.diffOldTarget = shadowKey;
                             return [label, newLink];
                         })
                     )
@@ -289,20 +278,13 @@ export class Converter {
                     };
                     this.graph.edges.push(edge);
                     this.convertShape(edge.target);
-                    // TODO: do this in another pass
-                    // this.istat.nodeMap[edge.target].data.isContainerMember = true;
-                }
-                if (link.diffOldTarget !== undefined && link.diffOldTarget !== null) {
-                    convertLinkTarget(link.diffOldTarget, false);
                 }
                 if (link.target !== null) {
-                    let isEdgeDiffAdd = undefined;
-                    if (link.diffOldTarget !== undefined) {
-                        isEdgeDiffAdd = true;
-                    }
                     const box = this.view.getShape(member.key);
-                    if (box.isDiffAdd !== undefined) {
-                        isEdgeDiffAdd = box.isDiffAdd;
+                    let isEdgeDiffAdd = label.endsWith('$new') ? true : (label.endsWith('$old') ? false : undefined);
+                    let isBoxDiffAdd = box.key.endsWith('$new') ? true : (box.key.endsWith('$old') ? false : undefined);
+                    if (isBoxDiffAdd !== undefined) {
+                        isEdgeDiffAdd = isBoxDiffAdd;
                     }
                     convertLinkTarget(link.target, isEdgeDiffAdd);
                 }
@@ -323,7 +305,6 @@ export class Converter {
         for (let i = 1; this.istat.nodeMap[shadowKey] !== undefined; i ++) {
             shadowKey = `${memberKey}$shadow${i}`;
         }
-        console.log('shadow', '->', shadowKey);
         const shadowNode: BoxNode = JSON.parse(JSON.stringify(memberNode));
         shadowNode.id = shadowKey;
         shadowNode.parentId = containerKey;

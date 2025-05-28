@@ -25,7 +25,7 @@ function BoxField({
             case 'box':
                 const boxField = (
                     <BoxField
-                        id={member.object} data={member.data} depth={depth + 1}
+                        key={label} id={member.object} data={member.data} depth={depth + 1}
                         notifier={notifier} parentCollapsed={parentCollapsed || data.collapsed}
                     />
                 );
@@ -80,10 +80,11 @@ function BoxField({
         )
     }
     // component definition
-    const color = sc.TextColor(data.isDiffAdd);
+    const isDiffAdd = data.key.endsWith('$new') ? true : (data.key.endsWith('$old') ? false : undefined);
+    const color = sc.TextColor(isDiffAdd);
     const txStyle = data.shadow ? 'opacity-80' : '';
     const bdStyle = data.shadow ? 'border-dotted' : '';
-    const bgColor = sc.BgColor(depth, data.isDiffAdd);
+    const bgColor = sc.BgColor(depth, isDiffAdd);
     const bgStyle = data.shadow ? 'bg-gradient-to-bl from-gray-100/70 to-gray-300/70' : `bg-[${bgColor}]`;
     return (
         <div className={`box-node relative flex flex-col items-center rounded-md border-2 border-[${color}] ${bdStyle} ${bgStyle}`}>
@@ -102,7 +103,7 @@ function BoxField({
                         {members}
                     </div>
                     <div className="w-full flex justify-end">
-                        <p className={`mr-1 text-sm text-[${color}] ${txStyle}`}>{data.addr}</p>
+                        <p className={`mr-1 text-sm text-[${color}] ${txStyle} select-text nodrag nopan`}>{data.addr}</p>
                     </div>
                 </div>
             )}
@@ -119,40 +120,31 @@ function TextField({
     if (parentCollapsed) return <></>;
     // data conversion and style config
     const value = member.value;
-    const diffOldValue = member.diffOldValue;
     const {
-        labelDelta, labelLines, valueLines, oldvlLines
-    } = sc.TextFieldAdaption(label, value, diffOldValue, depth);
+        labelDelta, labelLines, valueLines
+    } = sc.TextFieldAdaption(label.replace('$new', '').replace('$old', ''), value, depth);
     const labelWidth = 100 - 4 * depth + 16 * Math.ceil(labelDelta / 2);
-    const colorOld = diffOldValue === undefined ? "black" : sc.TextColor(false);
-    const colorNew = diffOldValue === undefined ? "black" : sc.TextColor(true);
+    const isDiffAdd = label.endsWith('$new') ? true : (label.endsWith('$old') ? false : undefined);
+    const color = sc.TextColor(isDiffAdd);
     const isValueEmoji = (value: string) => value.startsWith('&#') && value.endsWith(';');
-    const txStyle = isShadow ? 'opacity-80' : '';
+    const txStyle = [isShadow ? 'opacity-80' : '', isDiffAdd === false ? 'line-through' : ''].join(' ');
+    // const txStyle = isShadow ? 'opacity-80' : '';
     const bdStyle = isShadow ? 'border-dotted' : '';
     // label node
     const labelNode = (
         <div style={{width: `${labelWidth}px`}} className={`px-1 flex items-center border-r-2 border-black ${bdStyle}`}>
-            <div className="flex flex-col w-full">
-                <TextLine lines={labelLines} textClassName={`text-[${colorOld}] ${txStyle}`} />
-                {diffOldValue !== undefined &&
-                    <TextLine lines={labelLines} textClassName={`text-[${colorNew}] ${txStyle}`} />
-                }
-            </div>
+            <TextLine lines={labelLines} textClassName={`text-[${color}] ${txStyle}`} />
         </div>
     );
     // value node
     const valueNode = (
         <div className="flex-1 flex items-center px-1 py-0.5 truncate">
             <div className="flex flex-col w-full">
-                {/* handle diff */}
-                {diffOldValue !== undefined &&
-                    <TextLine lines={oldvlLines} textClassName={`text-center text-[${colorOld}] ${txStyle} line-through`} />
-                }
                 {/* handle emoji text */}
                 {isValueEmoji(value) ?
                     <p className={`text-center truncate`} dangerouslySetInnerHTML={{__html: value}} />
                 :
-                    <TextLine lines={valueLines} textClassName={`text-center text-[${colorNew}] ${txStyle}`} />
+                    <TextLine lines={valueLines} textClassName={`text-center text-[${color}] ${txStyle} select-text nodrag nopan`} />
                 }
             </div>
         </div>
@@ -167,7 +159,7 @@ function LinkField({
     label, member, depth, parentCollapsed, isShadow,
     edgeSource, notifier
 }: {
-    label: string, member: LinkMember, depth: number, parentCollapsed?: boolean, isShadow?: boolean,
+    label: string, member: LinkMember & { isTargetTrimmed?: boolean }, depth: number, parentCollapsed?: boolean, isShadow?: boolean,
     edgeSource: string, notifier: (id: string, type: string) => void
 }) {
     // edge handle
@@ -176,46 +168,33 @@ function LinkField({
     // data conversion and style config
     const targetToValue = (target: string | null) => target ? target.split(':', 1)[0] : "null";
     const value = targetToValue(member.target);
-    const diffOldValue = member.diffOldTarget === undefined ? undefined : targetToValue(member.diffOldTarget);
-    const colorOld = diffOldValue === undefined ? "#000000" : sc.TextColor(false);
-    const colorNew = diffOldValue === undefined ? "#000000" : sc.TextColor(true);
-    const txStyle = isShadow ? 'opacity-80' : '';
+    const isDiffAdd = label.endsWith('$new') ? true : (label.endsWith('$old') ? false : undefined);
+    const color = sc.TextColor(isDiffAdd);
+    const txStyle = [isShadow ? 'opacity-80' : '', isDiffAdd === false ? 'line-through' : ''].join(' ');
+    // const txStyle = isShadow ? 'opacity-80' : '';
     const bdStyle = isShadow ? 'border-dotted' : '';
     const {
-        labelDelta, labelLines, valueLines, oldvlLines
-    } = sc.TextFieldAdaption(label, value, diffOldValue, depth);
+        labelDelta, labelLines, valueLines
+    } = sc.TextFieldAdaption(label.replace('$new', '').replace('$old', ''), value, depth);
     const labelWidth = 100 - 4 * depth + 16 * Math.ceil(labelDelta / 2);
     // label node
     const labelNode = (
-        <div style={{width: `${labelWidth}px`}} className={`px-1 flex flex-col items-center border-r-2 border-black ${bdStyle}`}>
-            <TextLine lines={labelLines} textClassName={`text-[${colorOld}] ${txStyle}`} />
-            {diffOldValue !== undefined &&
-                <TextLine lines={labelLines} textClassName={`text-[${colorNew}] ${txStyle}`} />
-            }
+        <div style={{width: `${labelWidth}px`}} className={`px-1 py-0.5 flex flex-col items-center border-r-2 border-black ${bdStyle}`}>
+            <TextLine lines={labelLines} textClassName={`text-[${color}] ${txStyle}`} />
         </div>
     );
     // value node
     const valueNode = (
         <div className="flex-1 flex items-center px-1 py-0.5 truncate">
-            <div className="flex flex-col w-full">
-                {diffOldValue !== undefined && 
-                    <div className="flex flex-row w-full">
-                        <TextLine lines={oldvlLines} textClassName={`text-center text-[${colorOld}] ${txStyle} line-through`} />
-                        {diffOldValue != "null" && diffOldValue != "(empty)" &&
-                            <FlipButton onClick={() => {console.log("diffOldValue clicked")}} condition={false} extraClassName={`border-[${colorOld}] ${bdStyle} text-[${colorOld}] ${txStyle} opacity-0`} />
+            <div className="flex flex-row w-full">
+                <TextLine lines={valueLines} textClassName={`text-center text-[${color}] ${txStyle}`} />
+                {value != "null" && value != "(empty)" &&
+                    <FlipButton onClick={() => {
+                        if (member.target) {
+                            notifier(member.target, 'trimmed');
                         }
-                    </div>
+                    }} condition={member.isTargetTrimmed ?? false} extraClassName={`border-[${color}] ${bdStyle} text-[${color}] ${txStyle} select-text nodrag nopan`} />
                 }
-                <div className="flex flex-row w-full">
-                    <TextLine lines={valueLines} textClassName={`text-center text-[${colorNew}] ${txStyle}`} />
-                    {value != "null" && value != "(empty)" &&
-                        <FlipButton onClick={() => {
-                            if (member.target) {
-                                notifier(member.target, 'trimmed');
-                            }
-                        }} condition={member.isTargetTrimmed ?? false} extraClassName={`border-[${colorNew}] ${bdStyle} text-[${colorNew}] ${txStyle}`} />
-                    }
-                </div>
             </div>
         </div>
     );
@@ -246,7 +225,7 @@ function TextLine({ lines, textClassName }: {lines: string[], textClassName?: st
     return (
         <div className="flex flex-col w-full">
             {lines.map((line, i) => (
-                <p key={i} className={textClassName}>{line}</p>
+                <p key={i} className={`select-text ${textClassName}`}>{line}</p>
             ))}
         </div>
     );
