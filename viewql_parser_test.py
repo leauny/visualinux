@@ -12,7 +12,7 @@ from visualinux.dsl.parser.utils import *
 from visualinux.dsl.parser.viewql_converter import ViewQLConverter
 
 from pathlib import Path
-DIR_GRAMMAR = DIR_VL / 'visualinux' / 'grammar'
+DIR_GRAMMAR = DIR_VL / 'visualinux' / 'dsl' / 'grammar'
 
 VIEWQL_TEST = '''
 vaa = SELECT task_struct->se.load FROM a ^ b AS se WHERE (pid >= 2 OR pid == foo) AND (pid <= 4 OR pid == 5)

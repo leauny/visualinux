@@ -13,8 +13,8 @@
 %import common.WS
 %ignore WS
 
-%import .visualinux.grammar.cexpr.cexpr
-%import .visualinux.grammar.viewql.viewql
+%import .visualinux.dsl.grammar.cexpr.cexpr
+%import .visualinux.dsl.grammar.viewql.viewql
 
 // entry
 

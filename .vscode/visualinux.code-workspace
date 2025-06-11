@@ -30,6 +30,10 @@
     },
     "settings": {
         "files.associations": {
+            "*.md-reserved": "markdown",
+            "*.csv": "csv",
+            "*.vcl": "visualinux",
+            "*.md": "markdown",
             "*.css": "tailwindcss",
             "random": "c",
             "stdint.h": "c",
@@ -65,7 +69,11 @@
             "string.h": "c",
             "atomic": "c",
             "condition_variable": "c",
-            "module.h": "c"
+            "module.h": "c",
+            "bpf_helpers.h": "c",
+            "vmlinux.h": "c",
+            "ptrace.h": "c",
+            "bpf.h": "c"
         }
     }
 }

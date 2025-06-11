@@ -12,7 +12,7 @@ from datetime import datetime
 import cProfile, pstats, io
 from pstats import SortKey
 
-VIEWCL_GRAMMAR_PATH = VL_DIR / 'visualinux' / 'grammar' / 'viewcl.lark'
+VIEWCL_GRAMMAR_PATH = DSL_GRAMMAR_DIR / 'viewcl.lark'
 
 class Core:
     '''Note that there should be only one Engine instance existing.

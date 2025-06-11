@@ -6,9 +6,9 @@ import subprocess
 from pathlib import Path
 import shutil
 
-DIR_SCRIPTS  = Path(__file__).parent
-DIR_WORKLOAD = DIR_SCRIPTS.parent
-DIR_KERNEL   = DIR_WORKLOAD.parent / 'kernel'
+DIR_SCRIPTS     = Path(__file__).parent
+DIR_WORKLOAD    = DIR_SCRIPTS.parent
+DIR_KERNEL      = DIR_WORKLOAD.parent / 'kernel'
 
 DIR_BUSYBOX     = DIR_WORKLOAD / 'busybox'
 DIR_BUSYBOX_BIN = DIR_BUSYBOX / '_install'
@@ -72,6 +72,18 @@ def gen_rootdisk():
     shutil.copytree(DIR_BUSYBOX_BIN, DIR_DISK, symlinks=True)
     shutil.copytree(DIR_BIN, DIR_DISK / 'workload')
     shutil.copy('init.sh', DIR_DISK / 'init')
+
+    relpath_bpftool = Path('bpftool')
+    if relpath_bpftool.is_file():
+        shutil.copy(relpath_bpftool, DIR_DISK / 'bin' / 'bpftool')
+
+    relpath_ebpf_loader = Path('ebpf_loader')
+    if relpath_ebpf_loader.is_file():
+        shutil.copy(relpath_ebpf_loader, DIR_DISK / 'ebpf_loader')
+
+    relpath_ebpf_vdiff = Path('ebpf-vdiff.o')
+    if relpath_ebpf_vdiff.is_file():
+        shutil.copy(relpath_ebpf_vdiff, DIR_DISK / 'ebpf-vdiff')
 
     subprocess.run([
         DIR_SCRIPTS / 'gen_diskimg.sh', 'rootdisk.img', str(DISK_SIZE), DIR_DISK

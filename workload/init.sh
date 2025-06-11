@@ -35,12 +35,27 @@ ifconfig eth0 10.0.2.15 netmask 255.255.255.0
 route add default gw 10.0.2.2
 echo "nameserver 8.8.8.8" > /etc/resolv.conf
 
-# init ftrace
+# init epbf: trace alloc for visualinux diff
 
-# echo function_graph > /sys/kernel/tracing/current_tracer
-# echo schedule > /sys/kernel/tracing/set_graph_function
-# echo 'syscalls:*' > /sys/kernel/tracing/set_event
-# echo 'raw_syscalls:sys_enter' > /sys/kernel/tracing/set_event
+if [ -f /ebpf-vdiff ]; then
+    echo -e "Loading eBPF program for visualinux diff..."
+    # Mount bpffs for eBPF program management
+    mount -t bpf bpf /sys/fs/bpf
+    # Load the eBPF program using bpftool if available, otherwise try tc
+    if command -v bpftool >/dev/null 2>&1; then
+        # bpftool prog load /ebpf-vdiff /sys/fs/bpf/vdiff
+        # echo -e "eBPF program loaded via bpftool"
+        /ebpf_loader /ebpf-vdiff tp/syscalls/sys_enter_execve syscalls sys_enter_execve /sys/fs/bpf/vdiff
+        # /ebpf_loader /ebpf-vdiff tp/syscalls/sys_enter_write syscalls sys_enter_write /sys/fs/bpf/vdiff
+        echo -e "eBPF tracepoint loaded via ebpf_loader"
+    else
+        echo -e "bpftool not available, eBPF program needs manual loading"
+    fi
+else
+    echo -e "eBPF program /ebpf-vdiff not found"
+fi
+
+#
 
 echo -e "\nBoot took $(cut -d' ' -f1 /proc/uptime) seconds\n"
 

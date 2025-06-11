@@ -281,7 +281,7 @@ export class PrimaryPanel extends Panel {
     public changeViewname = (viewname: string | undefined) => this.viewname = viewname;
     public getCurrentViewAttrs(): ViewAttrs {
         if (this.viewname === undefined) {
-            throw new Error(`panel.getAttrs(): viewname is not set on panel #${this.key}.`);
+            return {};
         }
         return this.viewAttrs[this.viewname];
     }

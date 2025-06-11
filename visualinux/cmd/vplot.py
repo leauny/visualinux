@@ -12,7 +12,7 @@ import argparse
 import re
 from lark import Lark, ParseTree, Token, Tree
 
-VPLOT_GRAMMAR_PATH = VL_DIR / 'visualinux' / 'grammar' / 'vcmd-plot.lark'
+VPLOT_GRAMMAR_PATH = DSL_GRAMMAR_DIR / 'vcmd-plot.lark'
 VPLOT_PROMPT = (PROMPT_DIR / 'vplot.md').read_text()
 VPLOT_FIND_PROMPT      = (PROMPT_DIR / 'vplot-find.md').read_text()
 VPLOT_CONTAINER_PROMPT = (PROMPT_DIR / 'vplot-container.md').read_text()

@@ -10,7 +10,7 @@
 %import common.WS
 %ignore WS
 
-// %import .visualinux.grammar.cexpr (EQUALITY, RELATIONAL, POSTFIX_DOT, POSTFIX_ARROW)
+// %import .visualinux.dsl.grammar.cexpr (EQUALITY, RELATIONAL, POSTFIX_DOT, POSTFIX_ARROW)
 %import .cexpr (EQUALITY, RELATIONAL, POSTFIX_DOT, POSTFIX_ARROW, LBRACK_SQR, RBRACK_SQR)
 
 // entry

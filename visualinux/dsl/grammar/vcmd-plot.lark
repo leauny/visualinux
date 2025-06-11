@@ -10,7 +10,7 @@
 %import common.WS
 %ignore WS
 
-%import .visualinux.grammar.cexpr.unary_exp
+%import .visualinux.dsl.grammar.cexpr.unary_exp
 
 start: entries
 

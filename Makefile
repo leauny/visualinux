@@ -50,6 +50,9 @@ build-kernel:
 	cd kernel/ && ./scripts/clang-tools/gen_compile_commands.py
 
 build-workload:
+	make -C scripts/ebpf/
+	cp scripts/ebpf/ebpf_loader  workload/
+	cp scripts/ebpf/ebpf-vdiff.o workload/
 	make -C workload/
 
 .PHONY: build build-kernel build-workload

@@ -16,11 +16,14 @@ from typing import Iterable, Iterator, Generator, Callable
 from typing_extensions import Type, Self
 from typing import TYPE_CHECKING
 
+# init constant configs
+
+VL_DIR             = Path(__file__).absolute().parents[1]
+DSL_GRAMMAR_DIR    = VL_DIR / 'visualinux' / 'dsl' / 'grammar'
+
 # load configurable environment variables (from .env and .env.local)
 
 from dotenv import load_dotenv
-
-VL_DIR = Path(__file__).absolute().parents[1]
 
 load_dotenv(VL_DIR / '.env')
 load_dotenv(VL_DIR / '.env.local')
@@ -29,10 +32,10 @@ VIEWCL_SRC_DIR     = VL_DIR / os.getenv('VISUALINUX_VIEWCL_SRC_DIR', 'viewcl')
 PROMPT_DIR         = VL_DIR / os.getenv('VISUALINUX_PROMPT_DIR', 'scripts/prompts')
 GDB_FLAGCONFIG_DIR = VL_DIR / os.getenv('VISUALINUX_GDB_FLAGCONFIG_DIR', 'scripts/gdb/macros/flags')
 
-TMP_DIR    = VL_DIR / os.getenv('VISUALINUX_TMP_DIR', 'tmp')
-EXPORT_DIR = VL_DIR / os.getenv('VISUALINUX_EXPORT_DIR', 'out')
+TMP_DIR            = VL_DIR / os.getenv('VISUALINUX_TMP_DIR', 'tmp')
+EXPORT_DIR         = VL_DIR / os.getenv('VISUALINUX_EXPORT_DIR', 'out')
 
-VISUALIZER_PORT = int(os.getenv('VISUALINUX_VISUALIZER_PORT', 3000))
+VISUALIZER_PORT    = int(os.getenv('VISUALINUX_VISUALIZER_PORT', 3000))
 
 # exception re-throw utils
 # by default python gdb in vscode throw exceptions silently, which is really annoying
