@@ -138,7 +138,7 @@ class SymTable:
                     }
                     demixed_head = term.head
                     for demkey, demval in local['data'].items():
-                        demixed_head = demixed_head.replace(demkey, str(demval))
+                        demixed_head = demixed_head.replace(demkey, str(demval) if demval.gtype.is_pointer() else str(demval.value))
                     demixed = Term.CExpr(demixed_head).extend(term.field_seq)
                     if (demixed, cast) in self.__cexpr_eval_cache:
                         return self.__cexpr_eval_cache[(demixed, cast)]

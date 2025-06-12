@@ -8,16 +8,18 @@ NR_OPEN_DEFAULT = 64
 
 # cast_to_array(id, type, length) ((struct type (*)[length])(id))
 def cast_to_array(id: KValue, type: str, length: KValue | int) -> KValue:
+    if vl_debug_on(): printd(f'try cast_to_array {id=} {type=} {length=}')
     if isinstance(length, KValue):
         if length.gtype.is_pointer():
             length = length.dereference()
         length = length.value
+    if vl_debug_on(): printd(f'  => eval ((struct {type} (*)[{length}])({id.address}))')
     gval = gdb.parse_and_eval(f'((struct {type} (*)[{length}])({id.address}))')
     return KValue(GDBType(gval.type), id.address)
 
 # cast_to_parray(id, type, length) ((struct type * (*)[length])(id))
 def cast_to_parray(id: KValue, type: str, length: KValue | int) -> KValue:
-    print(f'try cast_to_parray {id=} {type=} {length=}')
+    if vl_debug_on(): printd(f'try cast_to_parray {id=} {type=} {length=}')
     return cast_to_array(id, f'{type} *', length)
 
 def get_bitfield(var: KValue, fieldname: str) -> KValue:

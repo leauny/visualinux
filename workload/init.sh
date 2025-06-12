@@ -41,16 +41,9 @@ if [ -f /ebpf-vdiff ]; then
     echo -e "Loading eBPF program for visualinux diff..."
     # Mount bpffs for eBPF program management
     mount -t bpf bpf /sys/fs/bpf
-    # Load the eBPF program using bpftool if available, otherwise try tc
-    if command -v bpftool >/dev/null 2>&1; then
-        # bpftool prog load /ebpf-vdiff /sys/fs/bpf/vdiff
-        # echo -e "eBPF program loaded via bpftool"
-        /ebpf_loader /ebpf-vdiff tp/syscalls/sys_enter_execve syscalls sys_enter_execve /sys/fs/bpf/vdiff
-        # /ebpf_loader /ebpf-vdiff tp/syscalls/sys_enter_write syscalls sys_enter_write /sys/fs/bpf/vdiff
-        echo -e "eBPF tracepoint loaded via ebpf_loader"
-    else
-        echo -e "bpftool not available, eBPF program needs manual loading"
-    fi
+    # Load the eBPF program
+    echo -e "load eBPF tracepoint via ebpf_loader"
+    /ebpf_loader /ebpf-vdiff tp/syscalls/sys_enter_execve syscalls sys_enter_execve /sys/fs/bpf/vdiff
 else
     echo -e "eBPF program /ebpf-vdiff not found"
 fi

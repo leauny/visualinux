@@ -28,7 +28,7 @@ def main():
         print(f"Error: {dump_dir} is not a directory")
         sys.exit(1)
 
-    relpaths = [p for p in dump_dir.iterdir() if p.is_dir()]
+    relpaths = sorted([p for p in dump_dir.iterdir() if p.is_dir()], key=lambda p: p.name)
     if not relpaths:
         print(f"Error: No subdirectories found in {dump_dir}")
         sys.exit(1)
