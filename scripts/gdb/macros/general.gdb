@@ -15,7 +15,7 @@ shell echo "+ source macros/general.gdb"
 
 macro define NULL ((void *)0)
 
-macro define NR_OPEN_DEFAULT 64
+macro define cast_to_array(id, type, length) ((struct type (*)[length])(id))
 macro define cast_to_parray(id, type, length) ((struct type * (*)[length])(id))
 
 ### per-cpu access

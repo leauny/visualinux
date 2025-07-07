@@ -107,7 +107,7 @@ define MapleTree as Box<maple_tree> [
     ma_root_entry = @this.ma_root
     type = ${mte_node_type(@ma_root_entry)}
     ma_min = ${0}
-    ma_max = ${mt_node_max(@type)}
+    ma_max = ${mt_node_max(@ma_root_entry)}
     ma_root = switch ${xa_is_node(@ma_root_entry)} {
     case ${true}:
         MapleNode(maple_root: @this.ma_root)

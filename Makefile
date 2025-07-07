@@ -5,7 +5,7 @@ NCPU := $(smp)
 endif
 
 ifndef NCPU
-NCPU := 2
+NCPU := 1
 endif
 
 ifndef GDBPORT

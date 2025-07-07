@@ -145,7 +145,7 @@ def mt_external_lock(mt: KValue) -> KValue:
 ### maple tree: traversing
 
 MAPLE_NODE_SLOTS = 31 #if defined(CONFIG_64BIT) || defined(BUILD_VDSO32_64)
-ULONG_MAX = 0xffffffff
+ULONG_MAX = 0xffffffffffffffff
 
 mt_max = {
 	maple_type.maple_dense.value:     MAPLE_NODE_SLOTS,
@@ -183,12 +183,10 @@ def __ma_calc_max(pivots: list[int], index: int, last_ma_max: int) -> int:
 # slot_safe = switch ${@slot_safety_check * 10 + @is_leaf} {
 
 def mt_slot_is_safe(pivots: KValue, index: KValue, last_ma_max: KValue) -> KValue:
-    # print(f'call mt_slot_is_safe {pivots=} {index=} {last_ma_max=}')
     value = __mt_slot_is_safe(__mt_decompose_pivots(pivots), index.value, last_ma_max.value)
     return KValue.FinalInt(GDBType.basic('bool'), value)
 
 def __mt_slot_is_safe(pivots: list[int], index: int, last_ma_max: int) -> bool:
-    # print(f'  > __ {pivots=} {index=} {last_ma_max=}')
     if index > 0 and pivots[index - 1] == last_ma_max:
         return False
     if index > 0 and pivots[index - 1] == 0:

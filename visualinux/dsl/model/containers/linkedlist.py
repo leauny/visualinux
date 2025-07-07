@@ -38,7 +38,7 @@ class List(Container):
         curr = root.eval_field('next')
         if vl_debug_on(): printd(f'{self.name} evaluate_on {root = !s} start_from {curr = !s}')
         members: list[entity.NotPrimitive] = []
-        while curr != root:
+        while curr.value != KValue_NULL.value and curr != root:
             try:
                 if vl_debug_on(): printd(f'{self.name} __evaluate_member {curr = !s}')
                 ent = self.evaluate_member(pool, curr)

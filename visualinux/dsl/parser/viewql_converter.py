@@ -32,6 +32,7 @@ class ViewQLConverter:
                 self.remove_lark_prefix(node)
 
     def scan_instructions(self, tree: Tree[Token]) -> Generator[ViewQLStmt, None, None]:
+        print(f'>viewql> scan_instructions: {tree!s}')
         for node in tree.children:
             assert isinstance(node, Tree) and node.data == 'instruction'
             inst = child_as_tree(node, 0)
@@ -48,11 +49,18 @@ class ViewQLConverter:
     # ======================================================================
 
     def parse_select(self, tree: Tree[Token]) -> ViewQLStmt:
+        print(f'>viewql> parse_select')
         object_set = serialize(child_as_tree(tree, 0))
+        print(f'  > {object_set = !s}')
         selector   = self.parse_selector(child_as_tree(tree, 1))
+        print(f'  > {selector = !s}')
         scope      = self.parse_scope(child_as_tree(tree, 2))
+        print(f'  > {scope = !s}')
         alias      = serialize(child_as_tree(tree, 3))
+        print(f'  > {alias = !s}')
         condition  = self.parse_condition(child_as_tree(tree, 4))
+        print(f'  > {condition = !s}')
+        print(f'>viewql> parse_select ok')
         return Select(object_set, selector, scope, alias, condition)
 
     def parse_selector(self, tree: Tree[Token]) -> Expression:

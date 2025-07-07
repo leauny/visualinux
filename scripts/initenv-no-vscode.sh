@@ -30,3 +30,6 @@ bash $dir_scripts/build/get-kernel.sh $version
 
 echo "+ build kgdb auxi tool..."
 make -C $dir_scripts/kgdb/agent-proxy/
+
+echo "+ download liburing source..."
+git clone https://github.com/axboe/liburing.git $dir_project/workload/src/io_uring/liburing --depth=1

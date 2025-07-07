@@ -42,11 +42,12 @@ def main():
                 'snKeyDst': f'$foo_{i}',
             })
 
-    send({
-        'command': 'USE',
-        'pKey': 0,
-        'snKey': 'diff-$foo_0-$foo_1',
-    })
+    if len(relpaths) > 1:
+        send({
+            'command': 'USE',
+            'pKey': 0,
+            'snKey': 'diff-$foo_0-$foo_1',
+        })
 
 def handle_one(sn_key: str, relpath: Path):
 

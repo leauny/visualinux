@@ -39,5 +39,8 @@ done
 echo "+ build and install the vscode extension of ViewCL language..."
 (cd $dir_scripts/dev/viewcl-lang-extension && npm install && npx vsce package --allow-missing-repository && code --install-extension viewcl-lang-extension-1.0.0.vsix)
 
-echo "+ build kgdb auxi tool..."
+echo "+ build kgdb aux tool..."
 make -C $dir_scripts/kgdb/agent-proxy/
+
+echo "+ download liburing source..."
+git clone https://github.com/axboe/liburing.git $dir_project/workload/src/io_uring/liburing --depth=1

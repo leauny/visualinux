@@ -28,6 +28,10 @@ def get_bitfield(var: KValue, fieldname: str) -> KValue:
 
 ### per-cpu access
 
+LINUX_GDB_DIR = os.path.join(VL_DIR, 'kernel/scripts/gdb')
+if LINUX_GDB_DIR not in sys.path:
+    sys.path.insert(0, LINUX_GDB_DIR)
+
 import linux.cpus
 
 def current_cpu() -> KValue:
@@ -60,7 +64,9 @@ def per_cpu_current_task(cpu: KValue | int) -> KValue:
     '''(*per_cpu_ptr(&(var), cpu))
     '''
     try:
-        ptr = gdb.parse_and_eval(f'per_cpu(current_task, {cpu!s})')
+        # ptr = gdb.parse_and_eval(f'per_cpu(current_task, {cpu!s})')
+        cpu_val = cpu.value if isinstance(cpu, KValue) else cpu
+        ptr = linux.cpus.get_current_task(cpu_val).address
     except:
         ptr = gdb.parse_and_eval(f'kgdb_info[{cpu!s}].task')
     return KValue(GDBType.lookup('task_struct'), int(ptr))
