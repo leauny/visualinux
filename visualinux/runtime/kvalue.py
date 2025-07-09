@@ -7,7 +7,6 @@ from visualinux.dsl.model.decorators import *
 from visualinux.evaluation import evaluation_counter
 
 import re
-import math
 
 class KValue:
 
@@ -252,3 +251,25 @@ class KValueVBox(KValue):
     @property
     def json_data_key(self) -> str:
         return f'VBox#{self.value}'
+
+class PyListOfKValues(KValue):
+
+    def __init__(self, py_value: list[KValue]) -> None:
+        super().__init__(GDBType.basic('void').pointer(), -998244353)
+        self.py_value = py_value
+
+    def __str__(self) -> str:
+        return f'[py_value] {self.py_value!s}'
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+    def __hash__(self) -> int:
+        return hash((self.gtype.name, str(self.value), str(self.py_value)))
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, PyListOfKValues):
+            return self.py_value == other.py_value    
+        if isinstance(other, KValue):
+            return self.py_value == other.value
+        return self.py_value == other

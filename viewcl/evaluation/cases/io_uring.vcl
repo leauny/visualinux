@@ -1,36 +1,22 @@
+define Page as Box<page> [
+    Text<raw_ptr> phys_addr: @this
+    Text<flag:page> flags
+]
+
 //// io_uring ////
-
-define IOBuffer as Box<io_buffer> [
-    Text addr, len, bid, bgid
-]
-
-define PageIOUring as Box<page> [
-    Text<raw_ptr> addr: @this
-]
-
-//// io_uring_mmap ////
-// file->f_op == &io_uring_fops;
-// struct io_ring_ctx *ctx = file->private_data;
-// ptr = io_buffer_get_list(ctx, bgid)->buf_ring;
-// pfn = virt_to_phys(ptr) >> PAGE_SHIFT;
-// return remap_pfn_range(vma, vma->vm_start, pfn, sz, vma->vm_page_prot);
-
-//// check 10_addrspace.vcl for the mmap()-ed io_uring pages ////
 
 define IOUringBufRing as Box<io_uring_buf_ring> [
     Text<raw_ptr> bufs
-]
+    Link phys_page -> @page
+] where {
+    page = Page(${virt_to_page(@this.bufs)})
+}
 
 define IOBufferList as Box<io_buffer_list> [
     Text bgid
-    Text buf_nr_pages
-    Link buf_list -> @buf_list
     Link buf_ring -> @buf_ring
     Text is_mapped, is_mmap
 ] where {
-    buf_list = List<io_buffer_list.buf_list>(@this.buf_list).forEach |item| {
-        yield IOBuffer<io_buffer.list>(@item)
-    }
     buf_ring = IOUringBufRing(@this.buf_ring)
 }
 
@@ -61,16 +47,12 @@ define IOTCtxNode as Box<io_tctx_node> [
 
 //// pipe ////
 
-define Page_simple as Box<page> [
-    Text<raw_ptr> addr: @this
-]
-
 define PipeBuffer as Box<pipe_buffer> [
     Link page -> @page
     Text offset, len
     Text<flag:pipe_buffer> flags
 ] where {
-    page = Page_simple(@this.page)
+    page = Page(@this.page)
 }
 
 define PipeINodeInfo as Box<pipe_inode_info> [
@@ -88,54 +70,20 @@ define PipeINodeInfo as Box<pipe_inode_info> [
     }
 }
 
-define File as Box<file> [
-    Text<string> filename: f_path.dentry.d_name.name
-	Text<flag:fcntl> f_flags
-	Text<raw_ptr> f_op
-    Text<raw_ptr> private_data
-    Shape private_obj: @priv_node
-] where {
-    i_mode = @this.f_inode.i_mode
-    priv_data = @this.private_data
-    priv_node = switch ${true} {
-        case ${S_ISFIFO(@i_mode)}:
-            [ Link pipe_info -> @pipe_info ] where {
-                pipe_info = PipeINodeInfo("pipe_info": @priv_data)
-            }
-        case ${@this.f_op == &io_uring_fops}:
-            [ Link io_uring -> @ctx ] where {
-                ctx = IORingCtx("io_uring_ctx": @priv_data)
-            }
-        otherwise:
-            [ Text<raw_ptr> ptr: @priv_data ]
-    }
-}
-
-define FilesStruct as Box<files_struct> [
-    Text count: count.counter
-    Text next_fd
-    Link fds -> @fds
-] where {
-    fds = Array(fds: ${cast_to_parray(@this.fdt.fd, file, NR_OPEN_DEFAULT)}).forEach |item| {
-        member = switch @item {
-            case ${NULL}:
-                NULL
-            otherwise:
-                [ Link "file #{@index}" -> @file ] where {
-                    file = File(@item)
-                }
-        }
-        yield @member
-    }
-}
-
 //// addrspace ////
 
 define VMArea as Box<vm_area_struct> [
     Text<u64:x> vm_start, vm_end
     Text<flag:vm_basic> vm_flags
     Text<bool> is_writable: ${vma_is_writable(@this)}
-]
+    Link pages -> @pages
+] where {
+    pages = Array(phys_pages: ${get_pages_in_vma(@this)}).forEach |item| {
+        yield [ Link "page #{@index}" -> @page ] where {
+            page = Page(@item)
+        }
+    }
+}
 
 define MapleNode as Box<maple_node> [
     Text<enum:maple_type> type: @type
@@ -236,18 +184,41 @@ define MMStruct as Box<mm_struct> [
     Text<u64:x> mmap_base
     Text mm_count: mm_count.counter
     Text map_count
-    Link mm_mt -> @mm_mt
+    Link addrspace -> @mm_as
 ] where {
     mm_mt = MapleTree(@this.mm_mt)
-    // mm_as = Array.convFrom(@mm_mt, vm_area_struct)
+    mm_as = Array.convFrom(@mm_mt, vm_area_struct)
 }
 
 //// task ////
 
+define File as Box<file> [
+    Text<string> filename: f_path.dentry.d_name.name
+	Text<flag:fcntl> f_flags
+	Text<raw_ptr> f_op
+    Text<raw_ptr> private_data
+    Shape private_obj: @priv_node
+] where {
+    i_mode = @this.f_inode.i_mode
+    priv_data = @this.private_data
+    priv_node = switch ${true} {
+        case ${S_ISFIFO(@i_mode)}:
+            [ Link pipe_info -> @pipe_info ] where {
+                pipe_info = PipeINodeInfo("pipe_info": @priv_data)
+            }
+        case ${@this.f_op == &io_uring_fops}:
+            [ Link io_uring -> @ctx ] where {
+                ctx = IORingCtx("io_uring_ctx": @priv_data)
+            }
+        otherwise:
+            [ Text<raw_ptr> ptr: @priv_data ]
+    }
+}
+
 define TaskStruct as Box<task_struct> [
     Text pid, comm
     Link io_uring_xa -> @xa
-    Link files -> @files
+    Link open_fds -> @fds
     Link mm -> @mm
 ] where {
     xa = switch @this.io_uring {
@@ -260,10 +231,27 @@ define TaskStruct as Box<task_struct> [
                 }
             }
     }
-    files = FilesStruct(@this.files)
+    fds = Array(fds: ${cast_to_parray(@this.files.fdt.fd, file, NR_OPEN_DEFAULT)}).forEach |item| {
+        member = switch @item {
+            case ${NULL}:
+                NULL
+            otherwise:
+                [ Link "file #{@index}" -> @file ] where {
+                    file = File(@item)
+                }
+        }
+        yield @member
+    }
     mm = MMStruct(@this.mm)
 }
 
 diag io_uring {
     plot TaskStruct("task_current": ${per_cpu_current_task(current_cpu())})
+} with {
+    io_uring_bls = SELECT io_ring_ctx->io_bls FROM *
+    io_uring_pgs = SELECT page FROM REACHABLE(io_uring_bls)
+
+    vma_ptr_pgs = SELECT vm_area_struct->pages FROM *
+    vma_pgs = SELECT page FROM REACHABLE(vma_ptr_pgs)
+    UPDATE vma_pgs \ io_uring_pgs WITH trimmed: true
 }

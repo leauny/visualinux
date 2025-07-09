@@ -19,10 +19,6 @@ MAPLE_ENODE_TYPE_SHIFT = 0x03
 # Bit 2 means a NULL somewhere below
 MAPLE_ENODE_NULL       = 0x04
 
-# gtype_enum_maple = GDBType.lookup('maple_type')
-# gtype_ptr_maple_node = GDBType.lookup('maple_node')
-# gtype_ptr_maple_topiary = GDBType.lookup('maple_topiary')
-
 gtype_enum_maple:        GDBType = GDBType.lookup_safe('maple_type')    # type: ignore
 gtype_ptr_maple_node:    GDBType = GDBType.lookup_safe('maple_node')    # type: ignore
 gtype_ptr_maple_topiary: GDBType = GDBType.lookup_safe('maple_topiary') # type: ignore
@@ -42,14 +38,14 @@ def mte_node_type(entry: KValue) -> KValue:
 def mte_to_node(entry: KValue) -> KValue:
     '''((struct maple_node *)((unsigned long)entry & ~MAPLE_NODE_MASK))
     '''
-    value = (entry.value_uint(ptr_size) & ~MAPLE_NODE_MASK)
-    return KValue(gtype_ptr_maple_node, value)
+    addr = (entry.value_uint(ptr_size) & ~MAPLE_NODE_MASK)
+    return KValue(gtype_ptr_maple_node, addr)
 
 def mte_to_mat(entry: KValue) -> KValue:
     '''((struct maple_topiary *)((unsigned long)entry & ~MAPLE_NODE_MASK))
     '''
-    value = (entry.value_uint(ptr_size) & ~MAPLE_NODE_MASK)
-    return KValue(gtype_ptr_maple_topiary, value)
+    addr = (entry.value_uint(ptr_size) & ~MAPLE_NODE_MASK)
+    return KValue(gtype_ptr_maple_topiary, addr)
 
 def ma_is_dense(type: KValue) -> KValue:
     '''(type < maple_leaf_64)

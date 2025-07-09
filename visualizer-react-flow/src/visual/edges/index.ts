@@ -1,6 +1,6 @@
-import type { Edge, EdgeTypes } from "@xyflow/react";
+import type { EdgeTypes } from "@xyflow/react";
+import GeneralEdge from "@app/visual/edges/GeneralEdge";
 
 export const edgeTypes = {
-    // Add your custom edge types here!
+    default: GeneralEdge,
 } satisfies EdgeTypes;
-

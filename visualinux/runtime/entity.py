@@ -250,9 +250,10 @@ class Container(RuntimeShape):
 
 class ContainerConv(JSONRepr):
 
-    def __init__(self, model: 'shape.ContainerConv', source: Box | Container) -> None:
+    def __init__(self, model: 'shape.ContainerConv', source: Box | Container, label: str) -> None:
         self.model = model
         self.source = source
+        self.label = label
         self.members: list[ContainerMember] = []
         self.parent: str | None = None
 
@@ -266,7 +267,7 @@ class ContainerConv(JSONRepr):
 
     @property
     def type(self) -> str:
-        return self.model.name
+        return '[' + self.model.name + ']'
 
     def add_member(self, key: str | None, **links) -> None:
         if key and key.startswith('0x0:'):
@@ -281,6 +282,9 @@ class ContainerConv(JSONRepr):
         return {
             'source':  self.source.key,
             'key':     self.key,
+            # 'type':    self.type,
+            'addr':    '-1',
+            'label':   self.label,
             'members': [member.to_json() for member in self.members],
             'parent':  self.parent
         }

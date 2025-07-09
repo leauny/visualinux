@@ -39,22 +39,21 @@ class ViewPreprocessor {
         }
     }
     private resetVBoxKeyForDiff() {
-        const keys = Object.keys(this.view.pool.boxes);
-        for (const key of keys) {
-            const box = this.view.pool.boxes[key];
-            if (box.addr == 'virtual') {
-                let newKey = this.genVBoxKeyFor(box);
-                if (newKey == key) continue;
+        // for (const obj of [...Object.values(this.view.pool.boxes), ...Object.values(this.view.pool.containers)]) {
+        for (const obj of Object.values(this.view.pool.boxes)) {
+            if (obj.addr == 'virtual') {
+                let newKey = this.genVBoxKeyFor(obj);
+                if (newKey == obj.key) continue;
                 for (let suffix = 1; newKey in this.view.pool.boxes || newKey in this.view.pool.containers; suffix ++) {
                     newKey = `${newKey.split('_')[0]}_${suffix}`;
                 }
-                this.resetBoxKey(key, newKey);
+                this.resetBoxKey(obj.key, newKey);
             }
         }
     }
-    private genVBoxKeyFor(box: Box) {
+    private genVBoxKeyFor(obj: Box | Container) {
         const chain = [];
-        let parent = box.parent;
+        let parent = obj.parent;
         while (parent) {
             let oldparent = parent;
             chain.push(parent);
@@ -66,18 +65,27 @@ class ViewPreprocessor {
                 throw new Error(`preprocessVBoxesForDiff: object not found: ${parent}`);
             }
             if (oldparent == parent) {
-                throw new Error(`preprocessVBoxesForDiff: circular reference: ${box.label}, parent:${parent}`);
+                throw new Error(`preprocessVBoxesForDiff: circular reference: ${obj.label}, parent:${parent}`);
             }
         }
         chain.reverse();
-        if (box.label) chain.push(box.label);
+        if (obj.label) chain.push(obj.label);
         return chain.join('.');
     }
     private resetBoxKey(key: ShapeKey, newKey: ShapeKey) {
-        let box = this.view.pool.boxes[key];
-        box.key = newKey;
-        this.view.pool.boxes[newKey] = box;
-        delete this.view.pool.boxes[key];
+        if (key in this.view.pool.boxes) {
+            let box = this.view.pool.boxes[key];
+            box.key = newKey;
+            this.view.pool.boxes[newKey] = box;
+            delete this.view.pool.boxes[key];
+        } else if (key in this.view.pool.containers) {
+            let container = this.view.pool.containers[key];
+            container.key = newKey;
+            this.view.pool.containers[newKey] = container;
+            delete this.view.pool.containers[key];
+        } else {
+            throw new Error(`preprocessVBoxesForDiff: object not found: ${key}`);
+        }
         for (const box of Object.values(this.view.pool.boxes)) {
             for (const abst of Object.values(box.absts)) {
                 for (const member of Object.values(abst.members)) {

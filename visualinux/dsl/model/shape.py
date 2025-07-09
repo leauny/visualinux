@@ -430,7 +430,7 @@ class ContainerConv:
         if not self.target_type.__name__ in ['Array', 'UnorderedSet']:
             raise fuck_exc(AssertionError, f'currently container_conv only support Array and UnorderedSet but {self.target_type = !s}')
 
-        ent_converted = entity.ContainerConv(self, ent_source)
+        ent_converted = entity.ContainerConv(self, ent_source, self.label)
         if ent_existed := pool.find_container_conv(ent_converted.key):
             return ent_existed
 

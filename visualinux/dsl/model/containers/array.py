@@ -21,6 +21,9 @@ class Array(Container):
         if vl_debug_on(): printd(f'{self.name} evaluate_on {self.root = !s} {iroot=!s}')
         root = iroot if iroot else self.parent.scope.evaluate_term(self.root, cast=self.type)
 
+        if isinstance(root, PyListOfKValues):
+            return self.evaluate_from_py_value(pool, root)
+
         ent_container = entity.Container(self, root, self.label)
         if ent_existed := pool.find_container(ent_container.key):
             if vl_debug_on(): printd(f'{self.name} evaluate_on {root = !s} duplicated;')
@@ -75,3 +78,13 @@ class Array(Container):
         member_shape.scope['index'] = Term.CExpr(str(index))
 
         return member_shape.evaluate_on(pool, member)
+
+    def evaluate_from_py_value(self, pool: Pool, root: PyListOfKValues) -> entity.Container:
+        ent_container = entity.Container(self, KValueVBox(pool.gen_vbox_addr()), self.label)
+        for i, member_value in enumerate(root.py_value):
+            ent = self.evaluate_member(pool, member_value, i)
+            ent_container.add_member(ent.key)
+        pool.add_container(ent_container)
+        return ent_container
+
+    # def evaluate_member_from_py_value(self, member: PyValue) -> entity.NotPrimitive:

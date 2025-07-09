@@ -246,6 +246,7 @@ export class Converter {
             const memberNode = this.istat.nodeMap[member.key];
             if (memberNode === undefined) {
                 console.error(`container ${container.key} memberNode undefined: ${member.key}`);
+                console.error('this.istat.nodeMap', this.istat.nodeMap);
                 continue;
             }
             if (memberNode.type != 'box') {
