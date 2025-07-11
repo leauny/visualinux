@@ -18,6 +18,3 @@ try:
     VDiff()
 except:
     raise fuck_exc(AssertionError, 'internal error on loading v-commands')
-
-# from visualinux.runtime.linux.mm_adhoc import GetAllPagesInVmaCommand
-# GetAllPagesInVmaCommand()

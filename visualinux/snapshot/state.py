@@ -131,7 +131,10 @@ class StateView:
             self.db_attrs.insert_container(container)
 
     def intp_viewql(self, viewql: ViewQLCode) -> None:
-        self.db_attrs.intp_viewql(viewql)
+        try:
+            self.db_attrs.intp_viewql(viewql)
+        except Exception as e:
+            print(f'[ERROR] unknown exception in intp_viewql: {e!s}')
 
     def to_json(self) -> dict:
         return {

@@ -23,7 +23,7 @@ class ViewQLConverter:
             return []
 
     def remove_lark_prefix(self, tree: Tree[Token]):
-        LARK_PREFIX = 'visualinux__grammar__viewql__'
+        LARK_PREFIX = 'visualinux__dsl__grammar__viewql__'
         for node in tree.children:
             if isinstance(node, Token):
                 node.type = node.type.removeprefix(LARK_PREFIX)
@@ -32,7 +32,6 @@ class ViewQLConverter:
                 self.remove_lark_prefix(node)
 
     def scan_instructions(self, tree: Tree[Token]) -> Generator[ViewQLStmt, None, None]:
-        print(f'>viewql> scan_instructions: {tree!s}')
         for node in tree.children:
             assert isinstance(node, Tree) and node.data == 'instruction'
             inst = child_as_tree(node, 0)
@@ -49,24 +48,17 @@ class ViewQLConverter:
     # ======================================================================
 
     def parse_select(self, tree: Tree[Token]) -> ViewQLStmt:
-        print(f'>viewql> parse_select')
         object_set = serialize(child_as_tree(tree, 0))
-        print(f'  > {object_set = !s}')
         selector   = self.parse_selector(child_as_tree(tree, 1))
-        print(f'  > {selector = !s}')
         scope      = self.parse_scope(child_as_tree(tree, 2))
-        print(f'  > {scope = !s}')
         alias      = serialize(child_as_tree(tree, 3))
-        print(f'  > {alias = !s}')
         condition  = self.parse_condition(child_as_tree(tree, 4))
-        print(f'  > {condition = !s}')
-        print(f'>viewql> parse_select ok')
         return Select(object_set, selector, scope, alias, condition)
 
     def parse_selector(self, tree: Tree[Token]) -> Expression:
         return self.parse_expression(child_as_tree(tree, 0))
 
-    def parse_scope(self, tree: Tree[Token]) -> str | SetOpt:
+    def parse_scope(self, tree: Tree[Token]) -> str | SetFn | SetOpt:
         return self.parse_set_expr(child_as_tree(tree, 0))
 
     def parse_condition(self, tree: Tree[Token] | None) -> CondOpt | Filter | None:
@@ -95,7 +87,6 @@ class ViewQLConverter:
         return CondOpt(opt, lhs, rhs)
 
     def parse_filter(self, tree: Tree[Token]) -> Filter:
-        print(f'parse_filter: {tree!s}')
         opt = serialize(tree.children[1])
         lhs = self.parse_expression(child_as_tree(tree, 0))
         rhs = self.parse_expression(child_as_tree(tree, 2))
@@ -137,7 +128,7 @@ class ViewQLConverter:
             suffix.append(ExprSuffix(serialize(node.children[i + 1]), serialize(node.children[i])))
         return Expression(head, suffix)
 
-    def parse_set_expr(self, node: Token | Tree[Token]) -> SetOpt | str:
+    def parse_set_expr(self, node: Token | Tree[Token]) -> str | SetFn | SetOpt:
         if isinstance(node, Token):
             if node.value == '*':
                 return node.value
@@ -145,14 +136,15 @@ class ViewQLConverter:
                 raise fuck_exc(UnexpectedTokenError, f'unknown set expr: {node!s}')
         return self.parse_set_opt(child_as_tree(node, 0))
 
-    def parse_set_opt(self, tree: Tree[Token]) -> SetOpt | str:
+    def parse_set_opt(self, tree: Tree[Token]) -> str | SetFn | SetOpt:
 
         if tree.data == 'set_uni':
             node = child_as_tree(tree, 0)
+            if node.data == 'set_expression':
+                return self.parse_set_opt(child_as_tree(node, 0))
             if node.data == 'object_set':
                 return serialize(tree)
-            else:
-                return self.parse_set_opt(child_as_tree(node, 0))
+            return self.handle_set_fn(serialize(child_as_tree(tree, 0)), serialize(child_as_tree(tree, 1)))
 
         if tree.data not in ['set_cap', 'set_cup', 'set_sub']:
             raise AssertionError(f'unknown set_opt: {tree.data}, {tree!s}')
@@ -164,3 +156,6 @@ class ViewQLConverter:
         lhs = self.parse_set_opt(child_as_tree(tree, 0))
         rhs = self.parse_set_opt(child_as_tree(tree, 2))
         return SetOpt(opt, lhs, rhs)
+
+    def handle_set_fn(self, fn: str, set_expr: str) -> SetFn:
+        return SetFn(fn, set_expr)

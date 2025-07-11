@@ -18,7 +18,7 @@ class Expression:
     is_null: bool | None = None
     is_bool: bool | None = None
 
-    def value(self) -> str | bool | None:
+    def value(self) -> int | bool | str | None:
         if self.is_null:
             return None
         if self.is_bool is not None:
@@ -51,11 +51,20 @@ class CondOpt:
         return f'({self.lhs!s} {self.opt} {self.rhs!s})'
 
 @dataclass
+class SetFn:
+
+    fn: str
+    set_expr: str
+
+    def __str__(self) -> str:
+        return f'{self.fn}({self.set_expr})'
+
+@dataclass
 class SetOpt:
 
     opt: str
-    lhs: Self | str
-    rhs: Self | str
+    lhs: str | SetFn | Self
+    rhs: str | SetFn | Self
 
     def __str__(self) -> str:
         return f'({self.lhs!s} {self.opt} {self.rhs!s})'
@@ -69,7 +78,7 @@ class Select:
 
     object_set: str
     selector:  Expression
-    scope:     str | SetOpt
+    scope:     str | SetFn | SetOpt
     alias:     str | None
     condition: CondOpt | Filter | None
 
@@ -85,7 +94,7 @@ class Select:
 @dataclass
 class Update:
 
-    set_expr:   SetOpt | str
+    set_expr:   str | SetFn | SetOpt
     attr_name:  str
     attr_value: str
 

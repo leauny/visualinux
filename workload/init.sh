@@ -70,7 +70,7 @@ swapon $SWAP_FILE
 
 # ./workload/stackrot/exploit
 
-./workload/io_uring/exploit
+./workload/io_uring/trigger
 
 # mkdir -p /exp
 # mount -t 9p exp /exp

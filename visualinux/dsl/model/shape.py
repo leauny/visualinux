@@ -434,31 +434,31 @@ class ContainerConv:
         if ent_existed := pool.find_container_conv(ent_converted.key):
             return ent_existed
 
-        if isinstance(ent_source, entity.Box):
-            searched: set[str] = set()
-            def search_reachable(ent: entity.NotPrimitive | None, distill: str | None):
-                if ent is None or ent.key in searched:
-                    return
-                if vl_debug_on(): printd(f'  search_reachable {ent.key = }, {distill = }')
-                searched.add(ent.key)
-                if isinstance(ent, entity.Container | entity.ContainerConv):
-                    for member in ent.members:
-                        search_reachable(pool.find(member.key), distill)
-                else:
-                    if self.is_member_distilled(pool, ent.key):
-                        ent_converted.add_member(ent.key)
-                    for view in ent.views.values():
-                        for member in view.members.values():
-                            if isinstance(member, entity.Link):
-                                search_reachable(pool.find(member.target_key), distill)
-                            elif isinstance(member, entity.BoxMember):
-                                search_reachable(pool.find(member.object_key), distill)
-            search_reachable(ent_source, self.distill)
-        else: # entity.Container
-            for member in ent_source.members:
-                if self.is_member_distilled(pool, member.key):
-                    ent_converted.add_member(member.key)
-            if vl_debug_on(): printd(f'Conv {self!s} => {ent_converted = !s}')
+        # if isinstance(ent_source, entity.Box):
+        searched: set[str] = set()
+        def search_reachable(ent: entity.NotPrimitive | None, distill: str | None):
+            if ent is None or ent.key in searched:
+                return
+            if vl_debug_on(): printd(f'  search_reachable {ent.key = }, {distill = }, {self.distill = }')
+            searched.add(ent.key)
+            if isinstance(ent, entity.Container | entity.ContainerConv):
+                for member in ent.members:
+                    search_reachable(pool.find(member.key), distill)
+            else:
+                if self.is_member_distilled(pool, ent.key):
+                    ent_converted.add_member(ent.key)
+                for view in ent.views.values():
+                    for member in view.members.values():
+                        if isinstance(member, entity.Link):
+                            search_reachable(pool.find(member.target_key), distill)
+                        elif isinstance(member, entity.BoxMember):
+                            search_reachable(pool.find(member.object_key), distill)
+        search_reachable(ent_source, self.distill)
+        # else: # entity.Container
+        #     for member in ent_source.members:
+        #         if self.is_member_distilled(pool, member.key):
+        #             ent_converted.add_member(member.key)
+        #     if vl_debug_on(): printd(f'Conv {self!s} => {ent_converted = !s}')
 
         pool.add_container(ent_converted)
         return ent_converted

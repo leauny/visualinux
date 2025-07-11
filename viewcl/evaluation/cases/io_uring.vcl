@@ -1,6 +1,7 @@
 define Page as Box<page> [
     Text<raw_ptr> phys_addr: @this
     Text<flag:page> flags
+    Text refcount: _refcount.counter
 ]
 
 //// io_uring ////
@@ -23,6 +24,7 @@ define IOBufferList as Box<io_buffer_list> [
 define IORingCtx as Box<io_ring_ctx> [
     Text submit_pid: submitter_task.pid
     Link io_bls -> @io_bls
+    // Link io_bl_pages -> @io_bl_pages
 ] where {
     // io_bl = IOBufferList(@this.io_bl)
     io_bls = Array(bls: ${cast_to_array(@this.io_bl, io_buffer_list, BGID_ARRAY)}).forEach |item| {
@@ -36,6 +38,7 @@ define IORingCtx as Box<io_ring_ctx> [
         }
         yield @member
     }
+    // io_bl_pages = Array.convFrom(@io_bls, page)
 }
 
 define IOTCtxNode as Box<io_tctx_node> [
@@ -248,10 +251,26 @@ define TaskStruct as Box<task_struct> [
 diag io_uring {
     plot TaskStruct("task_current": ${per_cpu_current_task(current_cpu())})
 } with {
+    unused_bls = SELECT io_buffer_list
+        FROM *
+        WHERE bgid >= 4
+    UPDATE unused_bls WITH trimmed: true
+
     io_uring_bls = SELECT io_ring_ctx->io_bls FROM *
     io_uring_pgs = SELECT page FROM REACHABLE(io_uring_bls)
 
     vma_ptr_pgs = SELECT vm_area_struct->pages FROM *
     vma_pgs = SELECT page FROM REACHABLE(vma_ptr_pgs)
+
     UPDATE vma_pgs \ io_uring_pgs WITH trimmed: true
+    UPDATE io_uring_pgs \ vma_pgs WITH trimmed: true
+
+    mm_as = SELECT mm_struct->addrspace FROM *
+    UPDATE mm_as WITH collapsed: true
+    UPDATE vma_ptr_pgs WITH collapsed: true
+
+    low_vmas = SELECT vm_area_struct
+        FROM *
+        WHERE vm_start < 0x10000000
+    UPDATE low_vmas WITH trimmed: true
 }

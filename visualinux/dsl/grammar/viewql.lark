@@ -3,8 +3,8 @@
 // import general modules
 
 %import common.CNAME
+%import common.DIGIT
 %import common.HEXDIGIT
-%import common.INT
 %import common.ESCAPED_STRING
 
 %import common.WS
@@ -39,7 +39,12 @@ attr_value: CNAME
 
 object_set: CNAME
 identifier: CNAME
-literal: INT | NULL_CONST | BOOL_CONST | ESCAPED_STRING
+literal: INTEGER | NULL_CONST | BOOL_CONST | ESCAPED_STRING
+
+INTEGER: DIGIT+
+       | HEXDIGIT_PREFIX HEXDIGIT+
+HEXDIGIT_PREFIX: "0x"
+
 NULL_CONST: "NULL"
 BOOL_CONST: "true" | "false"
 
@@ -58,11 +63,15 @@ set_cap: set_uni
 
 set_uni: object_set
        | "(" set_expression ")"
-       | "REACHABLE" "(" object_set ")"
+       | set_fn "(" object_set ")"
+
+set_fn: SET_FN_REACHABLE
 
 SET_OP_CAP: "^"
 SET_OP_CUP: "|"
 SET_OP_SUB: "\\"
+
+SET_FN_REACHABLE: "REACHABLE"
 
 // condition expr
 

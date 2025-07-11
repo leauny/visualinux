@@ -267,7 +267,7 @@ class ContainerConv(JSONRepr):
 
     @property
     def type(self) -> str:
-        return '[' + self.model.name + ']'
+        return '[' + self.model.name + '][Conv]'
 
     def add_member(self, key: str | None, **links) -> None:
         if key and key.startswith('0x0:'):

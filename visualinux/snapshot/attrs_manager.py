@@ -82,13 +82,13 @@ class ViewAttrsManager:
                 field_name = suffix.identifier
                 field_type = self.__get_field_type_of(table.name, field_name)
                 if field_type is None:
+                    scope[stmt.object_set] = set()
                     return # no satisfied objects
                 if object_keys is not None:
                     objects = table.search(where('$key').one_of(list(object_keys)))
                 else:
                     objects = table.all()
                 object_keys = {obj[field_name] for obj in objects}
-                print(f'~~ {suffix.identifier}: {object_keys!s}')
                 table = self.memdb.table(field_type)
             #
             scope_query = where('$key').one_of(list(object_keys)) if object_keys else Query().noop()
@@ -96,6 +96,10 @@ class ViewAttrsManager:
         cond_query = self.__eval_cond_expr(scope, stmt.condition, stmt.alias) if stmt.condition else Query().noop()
 
         print(f'~~ {table.name=!s} {scope_query=!s} {cond_query=!s}')
+        print(f'~~ {table.all()=!s}')
+        print(f'~~ {table.search(scope_query)=!s}')
+        print(f'~~ {table.search(cond_query)=!s}')
+        print(f'~~ {table.search(scope_query & cond_query)=!s}')
         # Print all objects and their conditions for debugging
         for obj in table.all():
             print(f'    ~~ obj: {obj}')
@@ -117,27 +121,48 @@ class ViewAttrsManager:
             return typemap.get(field_name)
         return None
 
-    def __eval_set_expr(self, scope: Scope, setopt: str | SetOpt) -> set[str]:
-        # print(f'    eval_set_expr {scope=!s} {setopt=!s}')
-        if isinstance(setopt, str):
-            # print(f'    --set_opt_isstr {scope=!s} {setopt=!s} {scope[setopt]=!s}')
-            return scope[setopt]
+    def __eval_set_expr(self, scope: Scope, setexpr: str | SetFn | SetOpt) -> set[str]:
+        if isinstance(setexpr, str):
+            return scope[setexpr]
+        if isinstance(setexpr, SetFn):
+            return self.__eval_set_fn(scope, setexpr)
         # calculate children
-        lhs = set(self.__eval_set_expr(scope, setopt.lhs))
-        rhs = set(self.__eval_set_expr(scope, setopt.rhs))
+        lhs = set(self.__eval_set_expr(scope, setexpr.lhs))
+        rhs = set(self.__eval_set_expr(scope, setexpr.rhs))
         # evaluate set operation
-        if setopt.opt == '^':
+        if setexpr.opt == '^':
             return lhs.intersection(rhs)
-        if setopt.opt == '|':
+        if setexpr.opt == '|':
             return lhs.union(rhs)
-        if setopt.opt == '\\':
+        if setexpr.opt == '\\':
             return lhs.difference(rhs)
-        raise fuck_exc(ValueError, f'unknown setopt {setopt!s}')
+        raise fuck_exc(ValueError, f'unknown setopt {setexpr!s}')
+
+    def __eval_set_fn(self, scope: Scope, setfn: SetFn) -> set[str]:
+        if setfn.fn == 'REACHABLE':
+            reachable = scope[setfn.set_expr]
+            new_reachable: set[str] = set()
+            loopcnt = 0
+            while loopcnt < 1000:
+                loopcnt += 1
+                new_reachable = set(reachable)
+                for reached in self.memdb.search(where('$key').one_of(list(reachable))):
+                    for new_key in reached['$reachable']:
+                        new_reachable.add(new_key)
+                if reachable == new_reachable:
+                    break
+                if len(reachable) == len(new_reachable):
+                    break
+                reachable = new_reachable
+            if loopcnt >= 1000:
+                raise fuck_exc(RuntimeError, f'eval_set_fn REACHABLE: unterminated loop')
+            return reachable
+        raise fuck_exc(ValueError, f'unknown setfn {setfn!s}')
 
     def __eval_cond_expr(self, scope: Scope, cond: CondOpt | Filter, alias: str | None):
         # for primitive cond expr synthesize a tinydb query
         if isinstance(cond, Filter):
-            print(f'?filter {cond.lhs=!s} {cond.rhs=!s} {cond.opt=!s}')
+            # extract lhs: tinydb query instance
             if cond.lhs.head == alias:
                 if not cond.lhs.suffix:
                     lhs_query = where('$addr')
@@ -147,17 +172,13 @@ class ViewAttrsManager:
                 lhs_query = where(cond.lhs.head)
             for suffix in cond.lhs.suffix:
                 lhs_query = lhs_query[suffix.identifier]
+            # extract rhs: string
             rhs_value = cond.rhs.value()
             if isinstance(rhs_value, str) and rhs_value.startswith('"') and rhs_value.endswith('"'):
                 rhs_value = rhs_value[1 : -1]
-            if cond.opt == '>':  return lhs_query >  rhs_value
-            if cond.opt == '<':  return lhs_query <  rhs_value
-            if cond.opt == '>=': return lhs_query >= rhs_value
-            if cond.opt == '<=': return lhs_query <= rhs_value
-            if cond.opt == '==': return lhs_query == rhs_value
-            if cond.opt == '!=': return lhs_query != rhs_value
-            if cond.opt == 'IN': return lhs_query.one_of(list(scope[str(rhs_value)]))
-            raise fuck_exc(TypeError, f'illegal cond expr {cond!s}')
+            # return
+            return self.__eval_cond_opt(scope, lhs_query, rhs_value, cond.opt)
+        # validity check
         if not isinstance(cond.lhs, CondOpt | Filter) or not isinstance(cond.rhs, CondOpt | Filter):
             raise fuck_exc(TypeError, f'illegal cond expr {cond!s}')
         # synthesize children
@@ -170,6 +191,31 @@ class ViewAttrsManager:
             return lhs | rhs
         raise fuck_exc(ValueError, f'unknown cond opt {cond.opt!s}')
 
+    def __eval_cond_opt(self, scope: Scope, lhs_query: Query, rhs_value: int | bool | str | None, opt: str):
+        def eval_cond_opt_as_numeric(val: Any, op: str, rhs: Any) -> bool:
+            try:
+                num_lhs = val_to_numeric(val)
+                num_rhs = val_to_numeric(rhs)
+                if op == '>':  return num_lhs >  num_rhs
+                if op == '<':  return num_lhs <  num_rhs
+                if op == '>=': return num_lhs >= num_rhs
+                if op == '<=': return num_lhs <= num_rhs
+                if op == '==': return num_lhs == num_rhs
+                if op == '!=': return num_lhs != num_rhs
+                raise fuck_exc(TypeError, f'unknown cond opt {opt!s}')
+            except (ValueError, TypeError, KeyError) as e:
+                return False
+        if is_val_numeric(rhs_value):
+            return lhs_query.test(lambda x: eval_cond_opt_as_numeric(x, opt, val_to_numeric(rhs_value)))
+        if opt == '>':  return lhs_query >  rhs_value
+        if opt == '<':  return lhs_query <  rhs_value
+        if opt == '>=': return lhs_query >= rhs_value
+        if opt == '<=': return lhs_query <= rhs_value
+        if opt == '==': return lhs_query == rhs_value
+        if opt == '!=': return lhs_query != rhs_value
+        if opt == 'IN': return lhs_query.one_of(list(scope[str(rhs_value)]))
+        raise fuck_exc(TypeError, f'illegal cond opt {opt!s}')
+
     def to_json(self) -> dict:
         objects = self.memdb.all()
         data = {}
@@ -177,3 +223,22 @@ class ViewAttrsManager:
             if attrs := { attr[1:]: obj[attr] for attr in obj.keys() if attr.startswith('^') }:
                 data[obj['$key']] = attrs
         return data
+
+# utils for cond expr evaluation
+
+def is_val_hexdigit(val: str) -> bool:
+    if len(val) <= 2 or not val.startswith('0x'):
+        return False
+    return all(c in '0123456789abcdef' for c in val[2 :])
+
+def is_val_numeric(val: Any) -> bool:
+    if isinstance(val, int):
+        return True
+    if not isinstance(val, str):
+        return False
+    return val.isdigit() or is_val_hexdigit(val)
+
+def val_to_numeric(val: Any) -> int:
+    if isinstance(val, str) and is_val_hexdigit(val):
+        return int(val, 16)
+    return int(val)
