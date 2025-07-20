@@ -28,13 +28,19 @@ export default function CustomEdge({
         sourcePosition, targetPosition,
         curvature: 0.25
     });
-    const colorNormal   = style?.stroke || '#000000';
+
+    const colorNormal = style.stroke || '#000000';
     const colorSelected = 'rgb(245, 125, 189)';
+
+    const safeId = id.replace(/[^a-zA-Z0-9]/g, '_');
+    const markerNormalId = `arrow_${safeId}_normal`;
+    const markerSelectedId = `arrow_${safeId}_selected`;
+
     return (
         <>
             <defs>
-                <ArrowMarker id="arrow-default"  size="8" color={colorNormal} />
-                <ArrowMarker id="arrow-selected" size="6" color={colorSelected} />
+                <ArrowMarker id={markerNormalId} size="8" color={colorNormal} />
+                <ArrowMarker id={markerSelectedId} size="6" color={colorSelected} />
             </defs>
             <BaseEdge
                 path={edgePath}
@@ -44,7 +50,7 @@ export default function CustomEdge({
                     strokeWidth: selected ? 2.5 : 1.5,
                     zIndex: 10
                 }}
-                markerEnd={selected ? 'url(#arrow-selected)' : 'url(#arrow-default)'}
+                markerEnd={selected ? `url(#${markerSelectedId})` : `url(#${markerNormalId})`}
             />
         </>
     );

@@ -37,7 +37,10 @@ export class Finalizer extends RendererPass {
             return !node.data.trimmed;
         });
         this.finalGraph.edges = this.finalGraph.edges.filter(edge => {
-            return !this.istat.getNode(edge.source).data.trimmed && !this.istat.getNode(edge.target).data.trimmed;
+            const source = this.istat.getNode(edge.source);
+            const target = this.istat.getNode(edge.target);
+            if (!source || !target) return false;
+            return !source.data.trimmed && !target.data.trimmed;
         });
     }
     private removeTrimmedBoxNodeData(nodeData: BoxNodeData) {

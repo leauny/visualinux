@@ -24,11 +24,6 @@ class RuntimeShape(JSONRepr):
     def __init__(self, model: 'shape.Shape | shape.ContainerConv | None') -> None:
         self.model = model
 
-    @property
-    @abstractmethod
-    def key(self) -> str:
-        pass
-
 class RuntimePrimitive(RuntimeShape):
     @property
     def key(self) -> str:
@@ -82,10 +77,7 @@ class Link(RuntimePrimitive):
             self.target_key = None
         else:
             self.target_key = target_key
-
-    @property
-    def target_type(self) -> str:
-        return key2type(self.target_key)
+        self.target_type = key2type(self.target_key)
 
     def to_json(self) -> dict:
         return {
@@ -133,13 +125,10 @@ class Box(RuntimeShape):
         super().__init__(model)
         self.model: 'shape.Box'
         self.root = root
+        self.key = root.json_data_key
         self.label = label
         self.views = views
         self.parent: str | None = None
-
-    @property
-    def key(self) -> str:
-        return self.root.json_data_key
 
     @property
     def addr(self) -> int:
@@ -204,13 +193,10 @@ class Container(RuntimeShape):
         super().__init__(model)
         self.model: 'shape.Container'
         self.root = root
+        self.key = f'{self.addr:#x}:{self.type}'
         self.label = label
         self.members: list[ContainerMember] = []
         self.parent: str | None = None
-
-    @property
-    def key(self) -> str:
-        return f'{self.addr:#x}:{self.type}'
 
     @property
     def addr(self) -> int:
@@ -253,13 +239,10 @@ class ContainerConv(JSONRepr):
     def __init__(self, model: 'shape.ContainerConv', source: Box | Container, label: str) -> None:
         self.model = model
         self.source = source
+        self.key = f'{self.addr:#x}:{self.type}'
         self.label = label
         self.members: list[ContainerMember] = []
         self.parent: str | None = None
-
-    @property
-    def key(self) -> str:
-        return f'{self.addr:#x}:{self.type}'
 
     @property
     def addr(self) -> int:

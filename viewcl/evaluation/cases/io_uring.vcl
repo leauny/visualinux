@@ -45,7 +45,7 @@ define IOTCtxNode as Box<io_tctx_node> [
     Text task_pid: task.pid
     Link ctx -> @ctx
 ] where {
-    ctx = IORingCtx(@this.ctx)
+    ctx = IORingCtx(io_ring_ctx: @this.ctx)
 }
 
 //// pipe ////
@@ -251,10 +251,10 @@ define TaskStruct as Box<task_struct> [
 diag io_uring {
     plot TaskStruct("task_current": ${per_cpu_current_task(current_cpu())})
 } with {
-    unused_bls = SELECT io_buffer_list
+    unrelated_bls = SELECT io_buffer_list
         FROM *
-        WHERE bgid >= 4
-    UPDATE unused_bls WITH trimmed: true
+        WHERE is_mapped == 0 OR is_mmap == 0
+    UPDATE unrelated_bls WITH trimmed: true
 
     io_uring_bls = SELECT io_ring_ctx->io_bls FROM *
     io_uring_pgs = SELECT page FROM REACHABLE(io_uring_bls)
@@ -265,8 +265,7 @@ diag io_uring {
     UPDATE vma_pgs \ io_uring_pgs WITH trimmed: true
     UPDATE io_uring_pgs \ vma_pgs WITH trimmed: true
 
-    mm_as = SELECT mm_struct->addrspace FROM *
-    UPDATE mm_as WITH collapsed: true
+    UPDATE io_uring_bls WITH collapsed: true
     UPDATE vma_ptr_pgs WITH collapsed: true
 
     low_vmas = SELECT vm_area_struct

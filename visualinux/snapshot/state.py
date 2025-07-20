@@ -93,9 +93,11 @@ class StateView:
         self.plot.append(key)
 
     def do_postprocess(self) -> None:
+        print(f'fuckall: {self.pool.boxes.keys()=} {self.pool.containers.keys()=}')
         self.__set_parent()
+        self.__set_vkey()
         self.__init_attr_manager()
-    
+
     def __set_parent(self) -> None:
         for key, ent in self.pool.boxes.items():
             ent.parent = None
@@ -123,6 +125,102 @@ class StateView:
                     raise fuck_exc(AssertionError, f'entity not found for {member.key = } of container {key}')
                 ent_child.parent = key
                 if vl_debug_on(): printd(f'container set_parent {ent_child.key=} .parent= {key=}')
+
+    def __set_vkey(self) -> None:
+        vkey_map: dict[str, str] = {}
+        #
+        visited: set[str] = set()
+        for key in self.plot:
+            self.__calc_new_vkey(key, vkey_map, visited)
+        print(f'{self.name} vkey_map:')
+        for key, new_key in vkey_map.items():
+            print(f'  | {key} -> {new_key}')
+        #
+        for key, new_key in vkey_map.items():
+            if key == new_key:
+                print(f'{self.name} warning: vkey_map [{key} -> {new_key}] is the same')
+                continue
+            if key in self.pool.boxes:
+                self.pool.boxes[new_key] = self.pool.boxes[key]
+                self.pool.boxes[new_key].key = new_key
+                del self.pool.boxes[key]
+            elif key in self.pool.containers:
+                self.pool.containers[new_key] = self.pool.containers[key]
+                self.pool.containers[new_key].key = new_key
+                del self.pool.containers[key]
+            else:
+                raise fuck_exc(AssertionError, f'object not found for {key = }')
+        #
+        for key, box in self.pool.boxes.items():
+            for view in box.views.values():
+                for member in view.members.values():
+                    if isinstance(member, entity.Link) and member.target_key in vkey_map:
+                        member.target_key = vkey_map[member.target_key]
+                    if isinstance(member, entity.BoxMember) and member.object_key in vkey_map:
+                        member.object_key = vkey_map[member.object_key]
+            if box.parent in vkey_map:
+                box.parent = vkey_map[box.parent]
+        #
+        for key, container in self.pool.containers.items():
+            for member in container.members:
+                if member.key in vkey_map:
+                    member.key = vkey_map[member.key]
+                for link in member.links.values():
+                    if link.target_key in vkey_map:
+                        link.target_key = vkey_map[link.target_key]
+            if container.parent in vkey_map:
+                container.parent = vkey_map[container.parent]
+            
+
+    def __calc_new_vkey(self, key: str, vkey_map: dict[str, str], visited: set[str], prefix: str = '__virtual_') -> None:
+        # check visited
+        if key in visited:
+            return
+        visited.add(key)
+        print(f'--visit {key=}')
+        # if box
+        if key in self.pool.boxes:
+            box = self.pool.boxes[key]
+            print(f'?? {box.key=} {box.addr=} {(box.addr<0)=}')
+            # update prefix
+            if box.addr < 0:
+                prefix += f'|{box.label}'
+                vkey_map[key] = prefix
+            else:
+                prefix += f'|{box.key}'
+            # dfs box
+            for view in box.views.values():
+                for member in view.members.values():
+                    if isinstance(member, entity.Link) and member.target_key is not None:
+                        self.__calc_new_vkey(member.target_key, vkey_map, visited, prefix)
+                    if isinstance(member, entity.BoxMember) and member.object_key is not None:
+                        self.__calc_new_vkey(member.object_key, vkey_map, visited, prefix)
+            # dfs parent
+            if box.parent is not None:
+                parent_prefix = prefix.rsplit('|', 1)[0] if '|' in prefix else prefix
+                self.__calc_new_vkey(box.parent, vkey_map, visited, parent_prefix)
+        # if container
+        elif key in self.pool.containers:
+            container = self.pool.containers[key]
+            # update prefix
+            if container.addr < 0:
+                prefix += f'|{container.label}'
+                vkey_map[key] = prefix
+            else:
+                prefix += f'|{container.key}'
+            # dfs container
+            for member in container.members:
+                if member.key is not None:
+                    self.__calc_new_vkey(member.key, vkey_map, visited, prefix)
+            # dfs parent
+            if container.parent is not None:
+                parent_prefix = prefix.rsplit('|', 1)[0] if '|' in prefix else prefix
+                self.__calc_new_vkey(container.parent, vkey_map, visited, parent_prefix)
+            if isinstance(container, entity.ContainerConv):
+                self.__calc_new_vkey(container.source.key, vkey_map, visited, prefix)
+        # exception
+        else:
+            raise fuck_exc(AssertionError, f'object not found for {key = }')
 
     def __init_attr_manager(self) -> None:
         for box in self.pool.boxes.values():

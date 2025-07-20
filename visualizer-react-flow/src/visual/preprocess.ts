@@ -1,4 +1,4 @@
-import { Snapshot, StateView, ShapeKey, Box, Abst, Container, isShapeBox } from "@app/visual/types";
+import { Snapshot, StateView, Box, Abst, Container, isShapeBox } from "@app/visual/types";
 
 export function preprocess(snapshot: Snapshot) {
     console.log('preprocess', snapshot);
@@ -26,84 +26,7 @@ class ViewPreprocessor {
         this.view = view;
     }
     private preprocess() {
-        this.resetVBoxAddr();
-        this.resetVBoxKeyForDiff();
         this.compactContainer();
-    }
-    private resetVBoxAddr() {
-        // vboxes has fake negative addresses
-        for (const obj of [...Object.values(this.view.pool.boxes), ...Object.values(this.view.pool.containers)]) {
-            if (obj.addr && obj.addr.startsWith('-')) {
-                obj.addr = 'virtual';
-            }
-        }
-    }
-    private resetVBoxKeyForDiff() {
-        // for (const obj of [...Object.values(this.view.pool.boxes), ...Object.values(this.view.pool.containers)]) {
-        for (const obj of Object.values(this.view.pool.boxes)) {
-            if (obj.addr == 'virtual') {
-                let newKey = this.genVBoxKeyFor(obj);
-                if (newKey == obj.key) continue;
-                for (let suffix = 1; newKey in this.view.pool.boxes || newKey in this.view.pool.containers; suffix ++) {
-                    newKey = `${newKey.split('_')[0]}_${suffix}`;
-                }
-                this.resetBoxKey(obj.key, newKey);
-            }
-        }
-    }
-    private genVBoxKeyFor(obj: Box | Container) {
-        const chain = [];
-        let parent = obj.parent;
-        while (parent) {
-            let oldparent = parent;
-            chain.push(parent);
-            if (parent in this.view.pool.boxes) {
-                parent = this.view.pool.boxes[parent].parent;
-            } else if (parent in this.view.pool.containers) {
-                parent = this.view.pool.containers[parent].parent;
-            } else {
-                throw new Error(`preprocessVBoxesForDiff: object not found: ${parent}`);
-            }
-            if (oldparent == parent) {
-                throw new Error(`preprocessVBoxesForDiff: circular reference: ${obj.label}, parent:${parent}`);
-            }
-        }
-        chain.reverse();
-        if (obj.label) chain.push(obj.label);
-        return chain.join('.');
-    }
-    private resetBoxKey(key: ShapeKey, newKey: ShapeKey) {
-        if (key in this.view.pool.boxes) {
-            let box = this.view.pool.boxes[key];
-            box.key = newKey;
-            this.view.pool.boxes[newKey] = box;
-            delete this.view.pool.boxes[key];
-        } else if (key in this.view.pool.containers) {
-            let container = this.view.pool.containers[key];
-            container.key = newKey;
-            this.view.pool.containers[newKey] = container;
-            delete this.view.pool.containers[key];
-        } else {
-            throw new Error(`preprocessVBoxesForDiff: object not found: ${key}`);
-        }
-        for (const box of Object.values(this.view.pool.boxes)) {
-            for (const abst of Object.values(box.absts)) {
-                for (const member of Object.values(abst.members)) {
-                    if (member.class == 'link' && member.target == key) {
-                        member.target = newKey;
-                    } else if (member.class == 'box' && member.object == key) {
-                        member.object = newKey;
-                    }
-                }
-            }
-        }
-        for (const container of Object.values(this.view.pool.containers)) {
-            for (const member of container.members) {
-                if (member.key == key) {
-                    member.key = newKey;
-                }
-            }
-        }
     }
     private compactContainer() {
         for (const container of Object.values(this.view.pool.containers)) {

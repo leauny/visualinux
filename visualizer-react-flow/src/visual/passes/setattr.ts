@@ -22,6 +22,7 @@ export class AttrSetter extends RendererPass {
             },
             (data) => {
                 const attrs = this.istat.getAttrs(data.key);
+                data.collapsed = attrs.collapsed == 'true';
                 data.direction = attrs.direction || 'horizontal';
                 for (const member of data.members) {
                     let edgeCandidates = this.graph.edges.filter(e => e.source == member.key);
