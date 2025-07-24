@@ -16,7 +16,8 @@
 // entry
 
 viewql: instruction*
-instruction: select | update
+instruction: select | update | comment
+comment: "//" /.+/
 
 // select stmt
 

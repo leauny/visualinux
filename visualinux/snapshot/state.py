@@ -93,7 +93,6 @@ class StateView:
         self.plot.append(key)
 
     def do_postprocess(self) -> None:
-        print(f'fuckall: {self.pool.boxes.keys()=} {self.pool.containers.keys()=}')
         self.__set_parent()
         self.__set_vkey()
         self.__init_attr_manager()
@@ -132,9 +131,9 @@ class StateView:
         visited: set[str] = set()
         for key in self.plot:
             self.__calc_new_vkey(key, vkey_map, visited)
-        print(f'{self.name} vkey_map:')
+        if vl_debug_on(): printd(f'{self.name} vkey_map:')
         for key, new_key in vkey_map.items():
-            print(f'  | {key} -> {new_key}')
+            if vl_debug_on(): printd(f'  | {key} -> {new_key}')
         #
         for key, new_key in vkey_map.items():
             if key == new_key:
@@ -177,11 +176,9 @@ class StateView:
         if key in visited:
             return
         visited.add(key)
-        print(f'--visit {key=}')
         # if box
         if key in self.pool.boxes:
             box = self.pool.boxes[key]
-            print(f'?? {box.key=} {box.addr=} {(box.addr<0)=}')
             # update prefix
             if box.addr < 0:
                 prefix += f'|{box.label}'

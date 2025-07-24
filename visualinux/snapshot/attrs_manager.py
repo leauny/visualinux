@@ -65,7 +65,7 @@ class ViewAttrsManager:
                 raise fuck_exc(TypeError, f'unknown stmt type {stmt!s}')
 
     def intp_select(self, stmt: Select, scope: Scope) -> None:
-        print(f'--intp {stmt!s}')
+        if vl_debug_on(): printd(f'--intp {stmt!s}')
         # find the table of the specified object type
         if stmt.selector.head == '*':
             table = self.memdb
@@ -95,25 +95,26 @@ class ViewAttrsManager:
 
         cond_query = self.__eval_cond_expr(scope, stmt.condition, stmt.alias) if stmt.condition else Query().noop()
 
-        print(f'~~ {table.name=!s} {scope_query=!s} {cond_query=!s}')
-        print(f'~~ {table.all()=!s}')
-        print(f'~~ {table.search(scope_query)=!s}')
-        print(f'~~ {table.search(cond_query)=!s}')
-        print(f'~~ {table.search(scope_query & cond_query)=!s}')
-        # Print all objects and their conditions for debugging
-        for obj in table.all():
-            print(f'    ~~ obj: {obj}')
-            if cond_query != Query().noop():
-                print(f'    ~~ matches condition: {cond_query(obj)}')
+        if vl_debug_on():
+            printd(f'~~ {table.name=!s} {scope_query=!s} {cond_query=!s}')
+            printd(f'~~ {table.all()=!s}')
+            printd(f'~~ {table.search(scope_query)=!s}')
+            printd(f'~~ {table.search(cond_query)=!s}')
+            printd(f'~~ {table.search(scope_query & cond_query)=!s}')
+            for obj in table.all():
+                printd(f'    ~~ obj: {obj}')
+                if cond_query != Query().noop():
+                    printd(f'    ~~ matches condition: {cond_query(obj)}')
+
         result = table.search(scope_query & cond_query)
         result_keys = set(obj['$key'] for obj in result)
         scope[stmt.object_set] = result_keys
-        print(f'! scope[{stmt.object_set}] = {result_keys!s}')
+        if vl_debug_on(): printd(f'! scope[{stmt.object_set}] = {result_keys!s}')
 
     def intp_update(self, stmt: Update, scope: Scope) -> None:
-        print(f'--intp {stmt!s}')
+        if vl_debug_on(): printd(f'--intp {stmt!s}')
         object_keys = self.__eval_set_expr(scope, stmt.set_expr)
-        print(f'--intp on {object_keys=!s}')
+        if vl_debug_on(): printd(f'--intp on {object_keys=!s}')
         self.memdb.update({f'^{stmt.attr_name}': stmt.attr_value}, where('$key').one_of(list(object_keys)))
 
     def __get_field_type_of(self, object_type: str, field_name: str) -> str | None:

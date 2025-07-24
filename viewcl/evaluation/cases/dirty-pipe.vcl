@@ -1,5 +1,7 @@
-define Page_simple as Box<page> [
-    Text<raw_ptr> addr: @this
+define Page as Box<page> [
+    Text<raw_ptr> phys_addr: @this
+    Text<flag:page> flags
+    Text refcount: _refcount.counter
 ]
 
 define PipeBufOps as Box<pipe_buf_operations> [
@@ -12,7 +14,7 @@ define PipeBuffer as Box<pipe_buffer> [
     Text<flag:pipe_buffer> flags
     // Link ops ~> @ops
 ] where {
-    page = Page_simple(@this.page)
+    page = Page(@this.page)
     ops = PipeBufOps(@this.ops)
 }
 
@@ -45,13 +47,13 @@ define FileToPipe as Box<file> [
     }
     pagecache = XArray(@this.f_inode.i_mapping.i_pages).forEach |item| {
         // yield [ Text<raw_ptr> page: @item ]
-        yield [ Link page -> @page ] where {
-            page = Page_simple(@item)
+        yield [ Link "page #{@index}" -> @page ] where {
+            page = Page(@item)
         }
     }
 }
 
-define TaskDP as Box<task_struct> [
+define TaskStruct as Box<task_struct> [
     Text pid, comm
     Shape files: @files
 ] where {
@@ -69,7 +71,7 @@ define TaskDP as Box<task_struct> [
 }
 
 diag dirty_pipe {
-    plot TaskDP("task_current": ${per_cpu_current_task(current_cpu())})
+    plot TaskStruct("task_current": ${per_cpu_current_task(current_cpu())})
 } with {
     file_pgc = SELECT file->pagecache FROM *
     file_pgs = SELECT page FROM REACHABLE(file_pgc)

@@ -78,7 +78,9 @@ def get_pages_in_vma(vma: KValue) -> PyListOfKValues:
     return PyListOfKValues(pages)
 
 def get_all_pages_in_vma(vma_addr: int):
-    """Get all struct pages for a given VMA"""
+    """Get all struct pages for a given VMA.
+       An ad-hoc version of get_pages_in_vma for differential testing.
+    """
     print(f'--get_all_pages_in_vma {vma_addr=:#x}')
     PAGE_OFFSET  = int(gdb_adaptor.eval('page_offset_base'))
     PAGE_SHIFT   = int(gdb_adaptor.eval('PAGE_SHIFT'))

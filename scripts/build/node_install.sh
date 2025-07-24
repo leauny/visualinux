@@ -10,7 +10,7 @@ version_cur="${version_cur:1}"
 version_req="20.17.0"
 
 if [ "$(printf '%s\n' "$version_req" "$version_cur" | sort -V | head -n1)" = "$version_req" ]; then
-    echo "node version check passed: $version_cur > $version_req"
+    echo "node version check passed: $version_cur >= $version_req"
     exit 0
 fi
 

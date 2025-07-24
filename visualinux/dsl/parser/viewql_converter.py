@@ -14,8 +14,9 @@ class ViewQLConverter:
         self.remove_lark_prefix(tree)
         try:
             insts: list[ViewQLStmt] = []
+            print(f'init_viewql:')
             for inst in self.scan_instructions(tree):
-                print(f'> {inst!s}')
+                print(f'  > {inst!s}')
                 insts.append(inst)
             return insts
         except Exception as e:
@@ -40,6 +41,8 @@ class ViewQLConverter:
                     yield self.parse_select(inst)
                 case 'update':
                     yield self.parse_update(inst)
+                case 'comment':
+                    pass
                 case _:
                     raise fuck_exc(UnexpectedTokenError, f'unknown instruction: {inst!s}')
 

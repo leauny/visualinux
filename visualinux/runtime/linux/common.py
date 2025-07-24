@@ -63,10 +63,12 @@ def per_cpu_offset(cpu: KValue | int) -> int:
 def per_cpu_current_task(cpu: KValue | int) -> KValue:
     '''(*per_cpu_ptr(&(var), cpu))
     '''
-    try:
-        # ptr = gdb.parse_and_eval(f'per_cpu(current_task, {cpu!s})')
+    try:        # linux-6.x
         cpu_val = cpu.value if isinstance(cpu, KValue) else cpu
         ptr = linux.cpus.get_current_task(cpu_val).address
     except:
-        ptr = gdb.parse_and_eval(f'kgdb_info[{cpu!s}].task')
+        try:    # linux-5.x
+            ptr = gdb.parse_and_eval(f'per_cpu(current_task, {cpu!s})')
+        except: # kgdb
+            ptr = gdb.parse_and_eval(f'kgdb_info[{cpu!s}].task')
     return KValue(GDBType.lookup('task_struct'), int(ptr))

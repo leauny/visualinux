@@ -161,11 +161,12 @@ class KValue:
             return self
         if self.gtype.tag == str(term):
             return self
-        if vl_debug_on(): printd(f'[cast] {self = !s}, {term = !s}')
+        if vl_debug_on(): printd(f'[cast] {self = !s}, {term = !s}, {as_pointer = }')
         # casted = KValue(self.inner.cast(type.inner))
         # gtype = gdb_adaptor.get_type(term.head)
         gtype = GDBType.lookup(term.head)
         if as_pointer: gtype = gtype.pointer()
+        if vl_debug_on(): printd(f'[cast] {gtype = !s}')
         if term.field_seq:
             if vl_debug_on(): printd(f'[cast] cast_container_of')
             casted = KValue(gtype, self.value - KValue.offsetof(term))

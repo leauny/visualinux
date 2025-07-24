@@ -157,18 +157,34 @@ class GDBType:
             cls.__type_lookup_cache[typename] = GDBType(gdbtype)
         return cls.__type_lookup_cache[typename]
 
-# basic type preload
+    @classmethod
+    def preload_basic(cls) -> None:
+        '''preload basic scalar types as non-pointer,
+           i.e., all other types are treated as pointers for viewcl evaluation
+        '''
+        #
+        for typename in ['char', 'short', 'int', 'long']:
+            cls.basic(typename)
+            cls.basic(f'unsigned {typename}')
+        #
+        for size in [8, 16, 32, 64]:
+            for sign in ['s', 'u']:
+                _sign = 'u' if sign == 'u' else ''
+                try:
+                    gdbtype = gdb.lookup_type(f'{_sign}int{size}_t')
+                except:
+                    try:
+                        gdbtype = gdb.lookup_type(f'{sign}{size}')
+                    except Exception as e:
+                        raise fuck_exc(AssertionError, f'GDBType.preload_basic({size=}) failed: ' + str(e))
+                gtype = GDBType(gdbtype)
+                cls.__type_lookup_cache[f'{_sign}int{size}_t'] = gtype
+                cls.__type_lookup_cache[f'{sign}{size}'] = gtype
+        #
+        for typename in ['uintptr_t']:
+            cls.basic(typename)
 
-for typename in ['char', 'short', 'int', 'long']:
-    GDBType.basic(typename)
-    GDBType.basic(f'unsigned {typename}')
-
-for size in [8, 16, 32, 64]:
-    for sign in ['', 'u']:
-        GDBType.basic(f'{sign}int{size}_t')
-
-for typename in ['uintptr_t']:
-    GDBType.basic(typename)
+GDBType.preload_basic()
 
 ptr_size: int = GDBType.basic('unsigned long').sizeof() * 8
 gtype_ptr_void = GDBType.lookup('void')

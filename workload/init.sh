@@ -64,13 +64,13 @@ swapon $SWAP_FILE
 
 # ./workload/test/summation
 
-# DIRTY_PIPE_TESTFILE=./workload/dirty-pipe/test.txt
-# yes 'a' | head -n 10000 > $DIRTY_PIPE_TESTFILE
-# ./workload/dirty-pipe/exploit $DIRTY_PIPE_TESTFILE 3 xxyyyzz
-
 # ./workload/stackrot/exploit
 
-./workload/io_uring/trigger
+DIRTY_PIPE_TESTFILE=./workload/dirty-pipe/test.txt
+yes 'a' | head -n 10000 > $DIRTY_PIPE_TESTFILE
+./workload/dirty-pipe/exploit $DIRTY_PIPE_TESTFILE 3 xxyyyzz
+
+# ./workload/io_uring/trigger
 
 # mkdir -p /exp
 # mount -t 9p exp /exp
