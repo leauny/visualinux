@@ -5,6 +5,7 @@ import {
 import { RendererInternalState, RendererPass } from "@app/visual/passes";
 import { type Node, type Edge } from "@xyflow/react";
 import Dagre from "@dagrejs/dagre";
+import layoutDagreWrapper from "@app/visual/dagre";
 
 import * as sc from "@app/visual/nodes/styleconf";
 
@@ -166,7 +167,7 @@ export class Layouter extends RendererPass {
         // init for the subflow layout
         let layoutOptions: Dagre.GraphLabel = {
             // rankdir: this.layoutDirection
-            rankdir: node.data.direction == 'vertical' ? 'TB' : 'LR'
+            rankdir: node.data.direction == 'vertical' ? 'TB' : 'LR',
         };
         layoutOptions.marginx = 16;
         layoutOptions.marginy = 16;
@@ -200,7 +201,7 @@ export class Layouter extends RendererPass {
         memberNodes = memberNodes.filter(node => !node.data.trimmed);
         // perform the subflow layout
         let hdrOffsetY = 32 - layoutOptions.marginy;
-        layoutGraphByDagre(memberNodes, memberEdges, layoutOptions);
+        layoutGraphByDagre(memberNodes, memberEdges, layoutOptions, []);
         // left spaces for the node header
         memberNodes.forEach(memberNode => memberNode.position.y += hdrOffsetY);
         // estimate the container size according to the layouted subflow graph
@@ -252,21 +253,87 @@ export class Layouter extends RendererPass {
             source: getRoot(edge.source),
             target: getRoot(edge.target),
         }));
-        layoutGraphByDagre(nodes, edges, { rankdir: 'LR', marginx: 16, marginy: 16, ranksep: 128 });
+        let layoutOptions: Dagre.GraphLabel = {
+            rankdir: 'LR', ranksep: 128,
+            marginx: 16, marginy: 16,
+        };
+        layoutGraphByDagre(nodes, edges, layoutOptions, this.istat.view.plot);
     }
 }
 
-function layoutGraphByDagre(nodes: Node[], edges: Edge[], options: Dagre.GraphLabel) {
-    // Add Object.hasOwn polyfill for browser compatibility of @dagrejs/graphlib
-    // @ts-ignore
+function calcNodeRank(nodes: Node[], edges: Edge[], rootNodes: string[]) {
+    // init
+    let nodeRank: {[key: string]: number} = {};
+    let nodeMap: {[key: string]: Node} = {};
+    let edgeMap: {[key: string]: Edge[]} = {};
+    for (const node of nodes) {
+        nodeMap[node.id] = node;
+    }
+    for (const edge of edges) {
+        if (!edgeMap[edge.source]) {
+            edgeMap[edge.source] = [];
+        }
+        edgeMap[edge.source].push(edge);
+    }
+    // if rootNodes not set, find no-prev ones
+    if (rootNodes.length == 0) {
+        rootNodes = nodes
+            .filter(node => edges.find(edge => edge.target == node.id) === undefined)
+            .map(node => node.id);
+        if (rootNodes.length == 0) {
+            for (const node of nodes) {
+                nodeRank[node.id] = 0;
+            }
+            return nodeRank;
+        }
+    }
+    // calculate the rank for each node
+    let nodeVisited: {[key: string]: boolean} = {};
+    for (const nodeKey of rootNodes) {
+        nodeVisited[nodeKey] = true;
+        nodeRank[nodeKey] = 0;
+        dfsCalcNodeRank(nodeKey, nodeMap, edgeMap, nodeVisited, nodeRank);
+    }
+    // return
+    return nodeRank;
+}
+
+function dfsCalcNodeRank(
+    nodeKey: string, nodeMap: {[key: string]: Node}, edgeMap: {[key: string]: Edge[]},
+    nodeVisited: {[key: string]: boolean}, nodeRank: {[key: string]: number}
+) {
+    const edges = edgeMap[nodeKey] || [];
+    for (const edge of edges) {
+        if (nodeRank[edge.target] !== undefined && nodeRank[edge.target] < nodeRank[nodeKey] + 2) {
+            nodeRank[edge.target] = nodeRank[nodeKey] + 2;
+        }
+        if (nodeVisited[edge.target]) {
+            continue;
+        }
+        if (nodeKey != edge.source) {
+            throw new Error(`nodeKey != edge.source: ${nodeKey} != ${edge.source}`);
+        }
+        nodeVisited[edge.target] = true;
+        nodeRank[edge.target] = nodeRank[nodeKey] + 2;
+        dfsCalcNodeRank(edge.target, nodeMap, edgeMap, nodeVisited, nodeRank);
+    }
+}
+
+function layoutGraphByDagre(nodes: Node[], edges: Edge[], graphOptions: Dagre.GraphLabel, rootNodes: string[]) {
+    // Add Object.hasOwn polyfill for es2022 compatibility of @dagrejs/graphlib
     if (!Object.hasOwn) Object.hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+
+    const nodeRank = calcNodeRank(nodes, edges, rootNodes);
 
     // layout the graph by dagre
     const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-    g.setGraph(options);
+    g.setGraph(graphOptions);
     edges.forEach((edge) => g.setEdge(edge.source, edge.target));
-    nodes.forEach((node) => g.setNode(node.id, { width: node.width, height: node.height }));
-    Dagre.layout(g);
+    nodes.forEach((node) => g.setNode(node.id, { width: node.width, height: node.height, rank: nodeRank[node.id] }));
+    const layoutOptions: Dagre.configUnion = {
+        disableOptimalOrderHeuristic: true
+    }
+    layoutDagreWrapper(g as any, layoutOptions);
 
     // convert positions from dagre to react flow
     for (let node of nodes) {
@@ -288,7 +355,7 @@ function layoutGraphByDagre(nodes: Node[], edges: Edge[], options: Dagre.GraphLa
     // make nodes with the same rank aligned
     for (let rank in nodesByRank) {
         const rankNodes = nodesByRank[rank];
-        if (options.rankdir == 'LR') {
+        if (graphOptions.rankdir == 'LR') {
             let minX = Math.min(...rankNodes.map(node => node.position.x));
             for (let node of rankNodes) {
                 node.position.x = minX;
