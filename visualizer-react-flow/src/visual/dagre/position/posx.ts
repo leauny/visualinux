@@ -40,7 +40,9 @@ class XPositioner {
         return parentMap;
     }
     position() {
-        this.positionFirstLayer();
+        if (this.layering.length > 0) {
+            this.positionFirstLayer();
+        }
         for (let layerIdx = 1; layerIdx < this.layering.length; layerIdx ++) {
             this.positionSubsequentLayer(layerIdx);
         }
@@ -51,7 +53,8 @@ class XPositioner {
         // TODO: use very big spacing first, and then adjust to minimal spacing across all layers between two subgraphs
         //
         const totalNodeWidth = layer.reduce((sum, node) => sum + this.graph.node(node).width, 0);
-        const totalSpacing = (layer.length - 1) * this.nodesep;
+        const availLayerCount = layer.reduce((sum, node) => sum + (this.graph.node(node).width > 0 ? 1 : 0), 0);
+        const totalSpacing = (availLayerCount - 1) * this.nodesep;
         const totalLayerWidth = totalNodeWidth + totalSpacing;
         // start from the leftmost position to center the layer around origin
         let currentX = -totalLayerWidth / 2;

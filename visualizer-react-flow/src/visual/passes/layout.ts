@@ -201,7 +201,7 @@ export class Layouter extends RendererPass {
         memberNodes = memberNodes.filter(node => !node.data.trimmed);
         // perform the subflow layout
         let hdrOffsetY = 32 - layoutOptions.marginy;
-        layoutGraphByDagre(memberNodes, memberEdges, layoutOptions, []);
+        this.layoutGraphByDagre(memberNodes, memberEdges, layoutOptions, []);//[memberNodes[0].id]);
         // left spaces for the node header
         memberNodes.forEach(memberNode => memberNode.position.y += hdrOffsetY);
         // estimate the container size according to the layouted subflow graph
@@ -257,114 +257,122 @@ export class Layouter extends RendererPass {
             rankdir: 'LR', ranksep: 128,
             marginx: 16, marginy: 16,
         };
-        layoutGraphByDagre(nodes, edges, layoutOptions, this.istat.view.plot);
+        this.layoutGraphByDagre(nodes, edges, layoutOptions, this.istat.view.plot);
     }
-}
+    private layoutGraphByDagre(nodes: Node[], edges: Edge[], graphOptions: Dagre.GraphLabel, rootNodes: string[]) {
+        // Add Object.hasOwn polyfill for es2022 compatibility of @dagrejs/graphlib
+        if (!Object.hasOwn) Object.hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
 
-function calcNodeRank(nodes: Node[], edges: Edge[], rootNodes: string[]) {
-    // init
-    let nodeRank: {[key: string]: number} = {};
-    let nodeMap: {[key: string]: Node} = {};
-    let edgeMap: {[key: string]: Edge[]} = {};
-    for (const node of nodes) {
-        nodeMap[node.id] = node;
-    }
-    for (const edge of edges) {
-        if (!edgeMap[edge.source]) {
-            edgeMap[edge.source] = [];
+        // layout the graph by dagre
+        const nodeRank = this.calcNodeRank(nodes, edges, rootNodes);
+        const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
+        g.setGraph(graphOptions);
+        edges.forEach((edge) => g.setEdge(edge.source, edge.target));
+        nodes.forEach((node) => g.setNode(node.id, { width: node.width, height: node.height, rank: nodeRank[node.id] }));
+        const layoutOptions: Dagre.configUnion = {
+            disableOptimalOrderHeuristic: true
         }
-        edgeMap[edge.source].push(edge);
+        layoutDagreWrapper(g as any, layoutOptions);
+
+        // convert positions from dagre to react flow
+        for (let node of nodes) {
+            const position = g.node(node.id);
+            const x = position.x - (node.width ?? 0) / 2;
+            const y = position.y - (node.height ?? 0) / 2;
+            node.position = { x, y };
+        }
+
+        // group nodes by rank
+        const nodesByRank: {[key: number]: Node[]} = {};
+        for (let node of nodes) {
+            const rank = g.node(node.id).rank ?? 0;
+            if (!nodesByRank[rank]) {
+                nodesByRank[rank] = [];
+            }
+            nodesByRank[rank].push(node);
+        }
+        // make nodes with the same rank aligned
+        for (let rank in nodesByRank) {
+            const rankNodes = nodesByRank[rank];
+            if (graphOptions.rankdir == 'LR') {
+                let minX = Math.min(...rankNodes.map(node => node.position.x));
+                for (let node of rankNodes) {
+                    node.position.x = minX;
+                }
+            } else {
+                let minY = Math.min(...rankNodes.map(node => node.position.y));
+                for (let node of rankNodes) {
+                    node.position.y = minY;
+                }
+            }
+        }
     }
-    // if rootNodes not set, find no-prev ones
-    if (rootNodes.length == 0) {
-        rootNodes = nodes
-            .filter(node => edges.find(edge => edge.target == node.id) === undefined)
-            .map(node => node.id);
+    //
+    private calcNodeRank(nodes: Node[], edges: Edge[], rootNodes: string[]) {
+        // init
+        let nodeRank: {[key: string]: number} = {};
+        let edgeMap: {[key: string]: Edge[]} = {};
+        for (const edge of edges) {
+            if (!edgeMap[edge.source]) {
+                edgeMap[edge.source] = [];
+            }
+            edgeMap[edge.source].push(edge);
+        }
+        // if rootNodes not set, find no-prev ones
         if (rootNodes.length == 0) {
-            for (const node of nodes) {
-                nodeRank[node.id] = 0;
+            rootNodes = nodes
+                .filter(node => edges.find(edge => edge.target == node.id) === undefined)
+                .map(node => node.id);
+            if (rootNodes.length == 0) {
+                for (const node of nodes) {
+                    nodeRank[node.id] = 0;
+                }
+                return nodeRank;
             }
-            return nodeRank;
         }
+        // calculate the rank for each node
+        let nodeVisited: {[key: string]: boolean} = {};
+        for (const nodeKey of rootNodes) {
+            nodeVisited[nodeKey] = true;
+            nodeRank[nodeKey] = 0;
+            this.dfsCalcNodeRank(nodeKey, edgeMap, nodeVisited, nodeRank);
+        }
+        // return
+        return nodeRank;
     }
-    // calculate the rank for each node
-    let nodeVisited: {[key: string]: boolean} = {};
-    for (const nodeKey of rootNodes) {
-        nodeVisited[nodeKey] = true;
-        nodeRank[nodeKey] = 0;
-        dfsCalcNodeRank(nodeKey, nodeMap, edgeMap, nodeVisited, nodeRank);
-    }
-    // return
-    return nodeRank;
-}
-
-function dfsCalcNodeRank(
-    nodeKey: string, nodeMap: {[key: string]: Node}, edgeMap: {[key: string]: Edge[]},
-    nodeVisited: {[key: string]: boolean}, nodeRank: {[key: string]: number}
-) {
-    const edges = edgeMap[nodeKey] || [];
-    for (const edge of edges) {
-        if (nodeRank[edge.target] !== undefined && nodeRank[edge.target] < nodeRank[nodeKey] + 2) {
+    private dfsCalcNodeRank(
+        nodeKey: string, edgeMap: {[key: string]: Edge[]},
+        nodeVisited: {[key: string]: boolean}, nodeRank: {[key: string]: number}
+    ) {
+        const edges = edgeMap[nodeKey] || [];
+        for (const edge of edges) {
+            if (nodeVisited[edge.target]) {
+                continue;
+            }
+            if (nodeKey != edge.source) {
+                throw new Error(`nodeKey != edge.source: ${nodeKey} != ${edge.source}`);
+            }
+            nodeVisited[edge.target] = true;
+            const node = this.istat.getNode(nodeKey);
+            const targetNode = this.istat.getNode(edge.target);
+            // ensure the correct rank of container nodes
+            if (isSameParent(node, targetNode)) {
+                nodeVisited[node.parentId] = true;
+                nodeRank[node.parentId] = nodeRank[nodeKey];
+                this.dfsCalcNodeRank(node.parentId, edgeMap, nodeVisited, nodeRank);
+            }
             nodeRank[edge.target] = nodeRank[nodeKey] + 2;
+            this.dfsCalcNodeRank(edge.target, edgeMap, nodeVisited, nodeRank);
         }
-        if (nodeVisited[edge.target]) {
-            continue;
-        }
-        if (nodeKey != edge.source) {
-            throw new Error(`nodeKey != edge.source: ${nodeKey} != ${edge.source}`);
-        }
-        nodeVisited[edge.target] = true;
-        nodeRank[edge.target] = nodeRank[nodeKey] + 2;
-        dfsCalcNodeRank(edge.target, nodeMap, edgeMap, nodeVisited, nodeRank);
     }
 }
 
-function layoutGraphByDagre(nodes: Node[], edges: Edge[], graphOptions: Dagre.GraphLabel, rootNodes: string[]) {
-    // Add Object.hasOwn polyfill for es2022 compatibility of @dagrejs/graphlib
-    if (!Object.hasOwn) Object.hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
-
-    const nodeRank = calcNodeRank(nodes, edges, rootNodes);
-
-    // layout the graph by dagre
-    const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-    g.setGraph(graphOptions);
-    edges.forEach((edge) => g.setEdge(edge.source, edge.target));
-    nodes.forEach((node) => g.setNode(node.id, { width: node.width, height: node.height, rank: nodeRank[node.id] }));
-    const layoutOptions: Dagre.configUnion = {
-        disableOptimalOrderHeuristic: true
+function hasParent(node: Node) {
+    return node.parentId !== undefined;
+}
+function isSameParent(node1: Node, node2: Node): node1 is (Node & { parentId: string }) {
+    if (!hasParent(node1) || !hasParent(node2)) {
+        return false;
     }
-    layoutDagreWrapper(g as any, layoutOptions);
-
-    // convert positions from dagre to react flow
-    for (let node of nodes) {
-        const position = g.node(node.id);
-        const x = position.x - (node.width ?? 0) / 2;
-        const y = position.y - (node.height ?? 0) / 2;
-        node.position = { x, y };
-    }
-
-    // group nodes by rank
-    const nodesByRank: {[key: number]: Node[]} = {};
-    for (let node of nodes) {
-        const rank = g.node(node.id).rank ?? 0;
-        if (!nodesByRank[rank]) {
-            nodesByRank[rank] = [];
-        }
-        nodesByRank[rank].push(node);
-    }
-    // make nodes with the same rank aligned
-    for (let rank in nodesByRank) {
-        const rankNodes = nodesByRank[rank];
-        if (graphOptions.rankdir == 'LR') {
-            let minX = Math.min(...rankNodes.map(node => node.position.x));
-            for (let node of rankNodes) {
-                node.position.x = minX;
-            }
-        } else {
-            let minY = Math.min(...rankNodes.map(node => node.position.y));
-            for (let node of rankNodes) {
-                node.position.y = minY;
-            }
-        }
-    }
+    return node1.parentId == node2.parentId;
 }

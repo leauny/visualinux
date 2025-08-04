@@ -62,13 +62,13 @@ swapon $SWAP_FILE
 
 # workload entry
 
-# ./workload/test/summation
+./workload/test/summation
 
 # ./workload/stackrot/exploit
 
-DIRTY_PIPE_TESTFILE=./workload/dirty-pipe/test.txt
-yes 'a' | head -n 10000 > $DIRTY_PIPE_TESTFILE
-./workload/dirty-pipe/exploit $DIRTY_PIPE_TESTFILE 3 xxyyyzz
+# DIRTY_PIPE_TESTFILE=./workload/dirty-pipe/test.txt
+# yes 'a' | head -n 10000 > $DIRTY_PIPE_TESTFILE
+# ./workload/dirty-pipe/exploit $DIRTY_PIPE_TESTFILE 3 xxyyyzz
 
 # ./workload/io_uring/trigger
 

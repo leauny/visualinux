@@ -249,7 +249,7 @@ function translateGraph(g: DagreGraph) {
 
   g.edges().forEach(e => {
     let edge = g.edge(e);
-    edge.points.forEach((p: any) => {
+    if (edge.points) edge.points.forEach((p: any) => {
       p.x -= minX;
       p.y -= minY;
     });

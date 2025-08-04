@@ -180,7 +180,7 @@ class View:
             while isinstance(member, SwitchCase):
                 member = member.evaluate_on(pool, item_value)
 
-            label = self.parent_box.scope.demix_label(member.label)
+            label = self.parent_box.scope.demix_label(member.label, item_value)
 
             if label in members:
                 raise fuck_exc(AssertionError, f'duplicated {member.label = } in {members = }')
@@ -265,7 +265,7 @@ class Box(Shape):
             if vl_debug_on(): printd(f'    !KValue_NULL {root = !s}')
             return entity.Box(self, root, self.label, OrderedDict({'default': entity.View('default', None, OrderedDict())}))
 
-        label = self.scope.demix_label(self.label)
+        label = self.scope.demix_label(self.label, item_value)
         ent = entity.Box(self, root, label, OrderedDict())
         pool.add_box(ent)
 

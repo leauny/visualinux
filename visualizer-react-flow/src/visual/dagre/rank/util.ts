@@ -22,7 +22,7 @@ export function longestPath(g: DagreGraph) {
         if (rank === Number.POSITIVE_INFINITY) {
             rank = 0;
         }
-        // [layout] modified
+        // [layout] modified: support predefined rank
         if (label.rank === undefined) {
             label.rank = rank;
         }

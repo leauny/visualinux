@@ -30,7 +30,7 @@ define IDR as Box<idr> {
     ]
 } where {
     idr_rt = XArray(@this.idr_rt).forEach |item| {
-        yield [ Link pid -> @pid ] where {
+        yield [ Link "pid #${@pid.numbers[0].nr}" -> @pid ] where {
             pid = Pid(@item)
         }
     }

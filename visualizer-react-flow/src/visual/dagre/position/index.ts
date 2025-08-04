@@ -2,6 +2,7 @@ import * as util from "@dagrejs/dagre/lib/util";
 import positionX from "@app/visual/dagre/position/posx";
 
 export default function position(g: DagreGraph) {
+    // [layout] modified: use custom positionX
     g = util.asNonCompoundGraph(g);
     positionY(g);
     Object.entries(positionX(g)).forEach(([v, x]) => g.node(v).x = x);

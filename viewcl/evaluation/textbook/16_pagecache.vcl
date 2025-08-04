@@ -13,7 +13,7 @@ define AddressSpace as Box<address_space> [
     Link a_ops -> @a_ops
 ] where {
     i_pages = XArray(@this.i_pages).forEach |item| {
-        yield [ Text<raw_ptr> page: @item ]
+        yield [ Text<raw_ptr> "page #{@index}": @item ]
         // yield [ Link page -> @page ] where {
         //     page = Box(@item) [ Text<raw_ptr> entry: @this ]
         // }

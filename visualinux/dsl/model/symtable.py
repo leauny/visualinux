@@ -90,6 +90,7 @@ class SymTable:
         return demixed
 
     def demix_label(self, label: str, item_value: KValue | None = None) -> str:
+        if vl_debug_on(): printd(f'demix_label {label=!s} {item_value=!s}')
         try:
             def repl_0(match: re.Match[str]) -> str:
                 return self.evaluate_term(Term.CExpr(match.group()[2 : -1]), None, item_value).value_string()
@@ -97,16 +98,20 @@ class SymTable:
             def repl(match: re.Match[str]) -> str:
                 expr = match.group()[1 : -1]
                 if expr.startswith('@'):
-                    term = Term.Variable(expr[1 :])
-                    text = self.evaluate_term(term, None, item_value).value_string()
+                    field_seq = expr.split('.')
+                    term = Term(TermType.Variable, field_seq[0][1 :], field_seq[1 :])
                 else:
                     term = Term.Field(expr)
-                    text = self.evaluate_term(term, None, item_value).dereference().value_string()
+                    # text = self.evaluate_term(term, None, item_value).dereference().value_string()
+                kval = self.evaluate_term(term, None, item_value)
+                if kval.gtype.is_pointer(): kval = kval.dereference()
+                text = kval.value_string()
                 return text
             label = re.sub(r'\{[^\{\}]+\}', repl, label)
             if vl_debug_on(): printd(f'  => {label = !s}')
         except Exception as e:
             raise fuck_exc(e.__class__, str(e))
+        if vl_debug_on(): printd(f'demix_label => {label=!s}')
         return label
 
     __cexpr_eval_cache: dict[tuple[Term, Term | None], 'KValue'] = {}
@@ -173,22 +178,26 @@ class SymTable:
                     if isinstance(vterm, Term):
                         if vl_debug_on(): printd(f'[DEBUG] evaluate_term var as itemvar: {term!s} => {vterm!s}')
                         value = vterm_scope.evaluate_term(vterm, None, item_value)
-                    # else:
-                    elif isinstance(vterm, ContainerConv):
-                        # try:
-                            value = vterm_scope.evaluate_term(vterm.source.root, vterm.source.type, item_value)
-                            if vl_debug_on(): printd(f'[DEBUG] evaluate_term var as container_conv: {term!s} => {vterm.format_string_head()}')
                     else:
-                        # except:
-                            if vl_debug_on(): printd(f'[DEBUG] evaluate_term var as shape: {term!s} => {vterm.format_string_head()}')
-                            if not vterm.root:
+                    # elif isinstance(vterm, ContainerConv):
+                        try:
+                            vvterm_a: ContainerConv = vterm # type: ignore
+                            if vvterm_a.source.root is None:
+                                raise fuck_exc(AssertionError, f'as container_conv {vvterm_a.source.root = }')
+                            value = vterm_scope.evaluate_term(vvterm_a.source.root, vvterm_a.source.type, item_value)
+                            if vl_debug_on(): printd(f'[DEBUG] evaluate_term var as container_conv: {term!s} => {vvterm_a.format_string_head()}')
+                    # else:
+                        except:
+                            vterm_b: NotPrimitive = vterm # type: ignore
+                            if vl_debug_on(): printd(f'[DEBUG] evaluate_term var as shape: {term!s} => {vterm_b.format_string_head()}')
+                            if not vterm_b.root:
                                 return KValue_Undefined
                             if vterm_scope == self:
                                 vterm_scope = self.parent
                             if not vterm_scope:
                                 return KValue_NULL
                             # if vl_debug_on(): printd(f'[DEBUG] in-var-is-shape: scope-of- {vterm_scope.this.format_string_head()}')
-                            value = vterm_scope.evaluate_term(vterm.root, vterm.type, item_value)
+                            value = vterm_scope.evaluate_term(vterm_b.root, vterm.type, item_value)
                     if vl_debug_on(): printd(f'[DEBUG] evaluate_term var {value = }, before {cast = }')
                     xxx = value.eval_fields(term.field_seq).cast(cast)
                     if vl_debug_on(): printd(f'[DEBUG] evaluate_term var => {xxx = }')

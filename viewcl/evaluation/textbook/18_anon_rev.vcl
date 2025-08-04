@@ -49,14 +49,14 @@ define MapleTreeARNode as Box [
         Array(slots: @node.slot).forEach |item| {
             ma_min = ${@last_ma_min + @index}
             ma_max = @ma_min
-            yield [ Link slot -> @slot ] where {
+            yield [ Link "slot #{@index}" -> @slot ] where {
                 slot = VMAreaAR(@item)
             }
         }
     case ${maple_leaf_64}, ${maple_range_64}:
         Array(slots: @node.mr64.slot).forEach |item| {
             pivots = @node.mr64.pivot
-            yield [ Link slot -> @slot_safe ] where {
+            yield [ Link "slot #{@index}" -> @slot_safe ] where {
                 slot_entry = @item
                 slot_length = ${sizeof((*@pivots)) / sizeof(void *)}
                 ma_min = ${@index > 0 ? (*@pivots)[@index - 1] + 1 : @last_ma_min}
@@ -76,7 +76,7 @@ define MapleTreeARNode as Box [
     case ${maple_arange_64}:
         Array(slots: @node.ma64.slot).forEach |item| {
             pivots = @node.ma64.pivot
-            yield [ Link slot -> @slot_safe ] where {
+            yield [ Link "slot #{@index}" -> @slot_safe ] where {
                 slot_entry = @item
                 slot_length = ${sizeof((*@pivots)) / sizeof(void *)}
                 ma_min = ${@index > 0 ? (*@pivots)[@index - 1] + 1 : @last_ma_min}
@@ -100,11 +100,11 @@ define MapleTreeARNode as Box [
     case ${maple_dense}: NULL
     case ${maple_leaf_64}, ${maple_range_64}:
         Array(@node.mr64.pivot).forEach |item| {
-            yield [ Text<u64:x> pivot: @item ]
+            yield [ Text<u64:x> "pivot #{@index}": @item ]
         }
     case ${maple_arange_64}:
         Array(@node.ma64.pivot).forEach |item| {
-            yield [ Text<u64:x> pivot: @item ]
+            yield [ Text<u64:x> "pivot #{@index}": @item ]
         }
     }
 }
@@ -143,14 +143,10 @@ define MMMM as Box<mm_struct> {
 define TaskAR as Box<task_struct> [
     Text pid, comm
     Text<string> state: ${get_task_state(@this)}
-    Link as -> @mm_mt
-    // Link children -> @children
+    Link addrspace -> @mm_as
 ] where {
     mm_mt = MapleTreeAR(@this.mm.mm_mt)
-    // as = Array.selectFrom(@mm_mt, VMArea)
-    // children = List<task_struct.children>(@this.children).forEach |node| {
-    //     yield TaskAR<task_struct.sibling>("task #{pid}": @node)
-    // }
+    mm_as = Array.convFrom(@mm_mt, vm_area_struct)
 }
 
 ar_current_task = TaskAR("task_current": ${per_cpu_current_task(current_cpu())})
