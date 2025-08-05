@@ -35,20 +35,42 @@ ifconfig eth0 10.0.2.15 netmask 255.255.255.0
 route add default gw 10.0.2.2
 echo "nameserver 8.8.8.8" > /etc/resolv.conf
 
-# init epbf: trace alloc for visualinux diff
+# init ebpf: trace alloc for visualinux diff
 
-if [ -f /ebpf-vdiff ]; then
+if [ -f /ebpf/ebpf_loader ] && [ -f /ebpf/ebpf-vdiff.o ] && [ -f /ebpf/ebpf-config.txt ]; then
     echo -e "Loading eBPF program for visualinux diff..."
+
+    # Start monitoring eBPF logs in background
+    /ebpf/ebpf_log_monitor.sh &
+
     # Mount bpffs for eBPF program management
     mount -t bpf bpf /sys/fs/bpf
-    # Load the eBPF program
-    echo -e "load eBPF tracepoint via ebpf_loader"
-    /ebpf_loader /ebpf-vdiff tp/syscalls/sys_enter_execve syscalls sys_enter_execve /sys/fs/bpf/vdiff
-else
-    echo -e "eBPF program /ebpf-vdiff not found"
+
+    # Enable tracing
+    echo 1 > /sys/kernel/debug/tracing/tracing_on
+
+    # Clear any existing traces
+    echo > /sys/kernel/debug/tracing/trace
+
+    # Load the eBPF program using config file
+    echo -e "Loading eBPF allocation tracer from config..."
+    /ebpf/ebpf_loader /ebpf/ebpf-vdiff.o /ebpf/ebpf-config.txt
+
+    if [ $? -eq 0 ]; then
+        echo -e "eBPF program loaded successfully"
+        echo -e "eBPF log monitor started"
+    else
+        echo -e "Failed to load eBPF program"
+    fi
+elif [ ! -f /ebpf/ebpf_loader ]; then
+    echo -e "eBPF loader /ebpf/ebpf_loader not found"
+elif [ ! -f /ebpf/ebpf-vdiff.o ]; then
+    echo -e "eBPF program /ebpf/ebpf-vdiff.o not found"
+elif [ ! -f /ebpf/ebpf-config.txt ]; then
+    echo -e "eBPF config file /ebpf/ebpf-config.txt not found"
 fi
 
-#
+# post-boot ok
 
 echo -e "\nBoot took $(cut -d' ' -f1 /proc/uptime) seconds\n"
 

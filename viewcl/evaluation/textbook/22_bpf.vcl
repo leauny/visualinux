@@ -21,6 +21,40 @@ define BPFArray as Box<bpf_array> [
     map = BPFMap(@this.map)
 }
 
+define BPFHTabBucket as Box<bucket> [
+    Text<raw_ptr> head
+]
+define BPFHTabElem as Box<htab_elem> [
+    Text hash
+    Text key
+    Text<u64:x> value: @value
+] where {
+    keysz = ${*@map.key_size}
+    value = ${((uint64_t *)@this.key + @keysz)}
+}
+define BPFHashTable as Box<bpf_htab> [
+    Shape map: @map
+    // Link buckets -> @buckets
+    Text n_buckets
+    Link elems -> @elems
+    Text elem_size
+    Text hashrnd
+] where {
+    map = BPFMap(@this.map)
+    // n_buckets = ${*@this.n_buckets}
+    // buckets = Array("buckets": ${cast_to_parray(@this.buckets, bucket, @n_buckets)}).forEach |item| {
+    //     yield [ Link "bucket #{@index}" -> @bucket ] where {
+    //         bucket = BPFHTabBucket(@item)
+    //     }
+    // }
+    max_entries = ${*@this.map.max_entries}
+    elems = Array("elems": ${cast_to_parray(@this.elems, bucket, @max_entries)}).forEach |item| {
+        yield [ Link "elem #{@index}" -> @elem ] where {
+            elem = BPFHTabElem(@item)
+        }
+    }
+}
+
 define BPFProgAux as Box<bpf_prog_aux> [
     Text used_map_cnt
     Text id
@@ -29,10 +63,12 @@ define BPFProgAux as Box<bpf_prog_aux> [
 ] where {
     map_cnt = ${*@this.used_map_cnt}
     used_maps = Array("used_maps": ${cast_to_parray(@this.used_maps, bpf_map, @map_cnt)}).forEach |item| {
-        yield [ Link map -> @map ] where {
+        yield [ Link "map #{@index}" -> @map ] where {
             map = switch ${*@item.map_type} {
-                case ${BPF_MAP_TYPE_ARRAY}: BPFArray(@item)
-                otherwise: BPFMap(@item)
+                case ${BPF_MAP_TYPE_ARRAY}: BPFArray("bpf_array": @item)
+                case ${BPF_MAP_TYPE_HASH}: BPFHashTable("bpf_hash": @item)
+                case ${BPF_MAP_TYPE_PERF_EVENT_ARRAY}: BPFArray("bpf_perf_event_array": @item)
+                otherwise: BPFMap("undefined_bpf_map": @item)
             }
         }
     }
@@ -47,6 +83,11 @@ define BPFProg as Box<bpf_prog> [
     aux = BPFProgAux(@this.aux)
 }
 
+define PerfTpEvent as Box<perf_event> [
+    Text name:  tp_event.name
+    Text class: tp_event.class.system
+]
+
 define BPFLinkOps as Box<bpf_link_ops> [
     Text<fptr> release, dealloc, detach, update_prog, show_fdinfo, fill_link_info
 ]
@@ -56,9 +97,18 @@ define BPFLink as Box<bpf_link> [
     Link ops -> @ops
     Link prog -> @prog
     Text<fptr> work_func: work.func
+    Link perf_event -> @perf_event
 ] where {
     ops = BPFLinkOps(@this.ops)
     prog = BPFProg(@this.prog)
+    fucktype = @this.type
+    perf_link = ${container_of(@this, struct bpf_perf_link, link)}
+    perf_event = switch ${*@this.type} {
+        case ${BPF_LINK_TYPE_PERF_EVENT}:
+            PerfTpEvent("perf_tp_event": @perf_link.perf_file.private_data)
+        otherwise:
+            NULL
+    }
 }
 
 define IDR_BPF_Links as Box<idr> {
@@ -69,7 +119,7 @@ define IDR_BPF_Links as Box<idr> {
     ]
 } where {
     idr_rt = XArray(@this.idr_rt).forEach |item| {
-        yield [ Link link -> @link ] where {
+        yield [ Link "link #{@index}" -> @link ] where {
             link = BPFLink(@item)
         }
     }
@@ -83,7 +133,7 @@ define IDR_BPF_Maps as Box<idr> {
     ]
 } where {
     idr_rt = XArray(@this.idr_rt).forEach |item| {
-        yield [ Link map -> @map ] where {
+        yield [ Link "map #{@index}" -> @map ] where {
             map = BPFMap(@item)
         }
     }

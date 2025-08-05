@@ -21,3 +21,4 @@ cpio_list_gen
 usr/
 _bin/
 _disk/
+_ebpf/

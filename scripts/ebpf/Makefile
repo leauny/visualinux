@@ -24,7 +24,7 @@ INC_FLAGS  := \
 
 # rules
 
-SOURCE := test.c
+SOURCE := trace_alloc.c
 TARGET := ebpf-vdiff.o
 
 build: loader $(TARGET)

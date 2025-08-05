@@ -73,17 +73,9 @@ def gen_rootdisk():
     shutil.copytree(DIR_BIN, DIR_DISK / 'workload')
     shutil.copy('init.sh', DIR_DISK / 'init')
 
-    relpath_bpftool = Path('bpftool')
-    if relpath_bpftool.is_file():
-        shutil.copy(relpath_bpftool, DIR_DISK / 'bin' / 'bpftool')
-
-    relpath_ebpf_loader = Path('ebpf_loader')
-    if relpath_ebpf_loader.is_file():
-        shutil.copy(relpath_ebpf_loader, DIR_DISK / 'ebpf_loader')
-
-    relpath_ebpf_vdiff = Path('ebpf-vdiff.o')
-    if relpath_ebpf_vdiff.is_file():
-        shutil.copy(relpath_ebpf_vdiff, DIR_DISK / 'ebpf-vdiff')
+    ebpf_dir = Path('_ebpf')
+    if ebpf_dir.is_dir():
+        shutil.copytree(ebpf_dir, DIR_DISK / 'ebpf', dirs_exist_ok=True)
 
     subprocess.run([
         DIR_SCRIPTS / 'gen_diskimg.sh', 'rootdisk.img', str(DISK_SIZE), DIR_DISK

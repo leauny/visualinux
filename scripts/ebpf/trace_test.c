@@ -8,7 +8,7 @@ struct pt_regs {
 };
 
 #define MAX_TRACKED 1024
-#define RINGBUF_SIZE 40960
+#define RINGBUF_SIZE 4096
 
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
@@ -20,12 +20,12 @@ struct {
 struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
     __uint(max_entries, RINGBUF_SIZE);
-} events SEC(".maps");
+} alloc_events SEC(".maps");
 
-SEC("kretprobe/kmalloc")
+SEC("kretprobe/__kmalloc")
 int kretprobe_kmalloc(struct pt_regs *ctx) {
     __u64 addr = (__u64)PT_REGS_RC(ctx);
-    bpf_printk("kmalloc returned: 0x%llx", addr);
+    bpf_printk("BPF triggered __kmalloc returned: 0x%llx", addr);
     return 0;
 }
 

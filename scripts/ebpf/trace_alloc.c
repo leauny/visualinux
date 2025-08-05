@@ -8,21 +8,11 @@ struct pt_regs {
 };
 
 #define MAX_TRACKED 1024
-#define RINGBUF_SIZE 40960
 
 enum event_type {
     ALLOC,
     FREE
 };
-
-// struct event {
-//     __u64 addr;
-//     __u64 timestamp;
-//     __u32 pid;
-//     __u32 cpu;
-//     enum event_type type;
-//     long stack_id;
-// };
 
 /* Tracked addresses storage */
 struct {
@@ -32,76 +22,121 @@ struct {
     __type(value, __u8);
 } tracked_addrs SEC(".maps");
 
-// /* Single 64-bit Bloom filter */
-// struct {
-//     __uint(type, BPF_MAP_TYPE_ARRAY);
-//     __uint(max_entries, 1);
-//     __type(key, __u32);
-//     __type(value, __u64);
-// } bloom_filter SEC(".maps");
-
-/* Per-CPU ring buffer for zero contention */
+/* Per-CPU perf event array for zero contention */
 struct {
-    __uint(type, BPF_MAP_TYPE_RINGBUF);
-    __uint(max_entries, RINGBUF_SIZE);
-} events SEC(".maps");
+    __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+    __uint(key_size, sizeof(__u32));
+    __uint(value_size, sizeof(__u32));
+} alloc_events SEC(".maps");
 
-// /* Bloom filter check (inline for performance) */
-// static __always_inline bool addr_tracked(__u64 addr) {
-//     __u32 idx = 0;
-//     __u64 *bloom = bpf_map_lookup_elem(&bloom_filter, &idx);
-//     if (!bloom) return false;
-//     return (*bloom >> (addr % 64)) & 1;
-// }
-/* Check if address is tracked (inline for performance) */
+/* Pre-defined tracked addresses in .rodata section */
+static const __u64 initial_addrs[10] = {
+    0xabc193ca,
+    0xdeadbeef,
+    0x12345678,
+    0xfeedface,
+    0x0badc0de,
+    0x1337cafe,
+    0x42f00baa,
+    0x7f7f7f7f,
+    0x11223344,
+    0x55667788
+};
+
+/* Check if address is tracked */
 static __always_inline bool addr_tracked(__u64 addr) {
     __u8 *tracked = bpf_map_lookup_elem(&tracked_addrs, &addr);
     return tracked != NULL;
 }
 
-/* Common event handler */
-static __always_inline void log_event(__u64 addr, enum event_type type, void *ctx) {
+/* Initialize tracked addresses - called from userspace or first probe */
+static __always_inline void init_tracked_addrs_if_needed(void) {
+    // ALL VARIABLE DECLARATIONS MUST BE AT THE TOP
+    __u8 value = 7;
+    __u8 *read_val = NULL;
+    int ret;
+
+    // Use a different approach: try to insert with BPF_NOEXIST
+    // If it succeeds (ret == 0), we need to initialize the rest
+    // If it fails (ret != 0), already initialized
+    bpf_printk("BPF init_tracked_addrs_if_needed");
+    bpf_printk("BPF updating addr #0: %llx", initial_addrs[0]);
+    ret = bpf_map_update_elem(&tracked_addrs, &initial_addrs[0], &value, BPF_NOEXIST);
+
+    if (ret == 0) {
+        // Successfully inserted, so we need to initialize the rest
+        bpf_printk("BPF first time init - continuing");
+        
+        bpf_printk("BPF updating addr #1: %llx", initial_addrs[1]);
+        bpf_map_update_elem(&tracked_addrs, &initial_addrs[1], &value, BPF_ANY);
+        bpf_printk("BPF updating addr #2: %llx", initial_addrs[2]);
+        bpf_map_update_elem(&tracked_addrs, &initial_addrs[2], &value, BPF_ANY);
+        bpf_printk("BPF updating addr #3: %llx", initial_addrs[3]);
+        bpf_map_update_elem(&tracked_addrs, &initial_addrs[3], &value, BPF_ANY);
+        bpf_printk("BPF updating addr #4: %llx", initial_addrs[4]);
+        bpf_map_update_elem(&tracked_addrs, &initial_addrs[4], &value, BPF_ANY);
+        
+        // Verify readback
+        read_val = bpf_map_lookup_elem(&tracked_addrs, &initial_addrs[0]);
+        if (read_val) bpf_printk("BPF readback addr #0: %llx val=%d", initial_addrs[0], *read_val);
+        read_val = bpf_map_lookup_elem(&tracked_addrs, &initial_addrs[1]);
+        if (read_val) bpf_printk("BPF readback addr #1: %llx val=%d", initial_addrs[1], *read_val);
+        read_val = bpf_map_lookup_elem(&tracked_addrs, &initial_addrs[2]);
+        if (read_val) bpf_printk("BPF readback addr #2: %llx val=%d", initial_addrs[2], *read_val);
+        read_val = bpf_map_lookup_elem(&tracked_addrs, &initial_addrs[3]);
+        if (read_val) bpf_printk("BPF readback addr #3: %llx val=%d", initial_addrs[3], *read_val);
+        read_val = bpf_map_lookup_elem(&tracked_addrs, &initial_addrs[4]);
+        if (read_val) bpf_printk("BPF readback addr #4: %llx val=%d", initial_addrs[4], *read_val);
+    } else {
+        // Key already exists, already initialized
+        bpf_printk("BPF already initialized - skipping");
+    }
+}
+
+/* Common event handler for kmalloc */
+static __always_inline void log_kmalloc_event(__u64 addr, void *ctx) {
+    init_tracked_addrs_if_needed();
     if (!addr_tracked(addr)) return;
-    // struct event e = {
-    //     .addr = addr,
-    //     .timestamp = bpf_ktime_get_ns(),
-    //     .pid = bpf_get_current_pid_tgid() >> 32,
-    //     .cpu = bpf_get_smp_processor_id(),
-    //     .type = type,
-    //     .stack_id = bpf_get_stackid(ctx, NULL, BPF_F_USER_STACK)
-    // };
-    bpf_ringbuf_output(&events, &addr, sizeof(addr), 0);
+    // Use a simple format string to avoid .rodata.str1.1 issues
+    bpf_printk("BPF kmalloc tracked addr=0x%llx", addr);
+    bpf_perf_event_output(ctx, &alloc_events, BPF_F_CURRENT_CPU, &addr, sizeof(addr));
+}
+
+/* Common event handler for cache alloc */
+static __always_inline void log_cache_alloc_event(__u64 addr, void *ctx) {
+    init_tracked_addrs_if_needed();
+    if (!addr_tracked(addr)) return;
+    bpf_printk("BPF cache_alloc tracked addr=0x%llx", addr);
+    bpf_perf_event_output(ctx, &alloc_events, BPF_F_CURRENT_CPU, &addr, sizeof(addr));
 }
 
 /* Allocation kretprobes */
-SEC("kretprobe/kmalloc")
+SEC("kretprobe/__kmalloc")
 int kretprobe_kmalloc(struct pt_regs *ctx) {
-    __u64 addr = (__u64)PT_REGS_RC(ctx);  // Correct way to get retval
-    bpf_printk("kretprobe_kmalloc: addr=0x%llx", addr);
-    log_event(addr, ALLOC, ctx);
+    __u64 addr = (__u64)PT_REGS_RC(ctx);
+    log_kmalloc_event(addr, ctx);
     return 0;
 }
 
 SEC("kretprobe/kmem_cache_alloc")
 int kretprobe_cache_alloc(struct pt_regs *ctx) {
-    __u64 addr = (__u64)PT_REGS_RC(ctx);  // Correct way to get retval
-    bpf_printk("kretprobe_cache_alloc: addr=0x%llx", addr);
-    log_event(addr, ALLOC, ctx);
+    __u64 addr = (__u64)PT_REGS_RC(ctx);
+    log_cache_alloc_event(addr, ctx);
     return 0;
 }
 
 // /* Free kprobes */
 // SEC("kprobe/kfree")
 // int kprobe_kfree(struct pt_regs *ctx) {
-//     __u64 ptr = (__u64)__PT_REGS_PARM1(ctx);
-//     log_event(ptr, FREE, ctx);
+//     __u64 ptr = (__u64)PT_REGS_PARM1(ctx);
+//     bpf_printk("BPF kfree addr=0x%llx", ptr);
 //     return 0;
 // }
 
 // SEC("kprobe/kmem_cache_free")
 // int kprobe_cache_free(struct pt_regs *ctx) {
-//     __u64 ptr = (__u64)__PT_REGS_PARM2(ctx);
-//     log_event(ptr, FREE, ctx);
+//     __u64 ptr = (__u64)PT_REGS_PARM2(ctx);
+//     bpf_printk("BPF cache_free addr=0x%llx", ptr);
 //     return 0;
 // }
 

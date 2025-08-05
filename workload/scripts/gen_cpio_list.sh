@@ -6,11 +6,18 @@ out=$1
 
 echo "file /init ./init.sh 0755 0 0" > $out
 
-if [ -f "./ebpf_loader" ]; then
-    echo "file /ebpf_loader ./ebpf_loader 0755 0 0" >> $out
+echo "dir /ebpf 0644 0 0" >> $out
+if [ -f "./_ebpf/ebpf_loader" ]; then
+    echo "file /ebpf/ebpf_loader ./_ebpf/ebpf_loader 0755 0 0" >> $out
 fi
-if [ -f "./ebpf-vdiff.o" ]; then
-    echo "file /ebpf-vdiff ./ebpf-vdiff.o 0755 0 0" >> $out
+if [ -f "./_ebpf/ebpf-vdiff.o" ]; then
+    echo "file /ebpf/ebpf-vdiff.o ./_ebpf/ebpf-vdiff.o 0755 0 0" >> $out
+fi
+if [ -f "./_ebpf/ebpf-config.txt" ]; then
+    echo "file /ebpf/ebpf-config.txt ./_ebpf/ebpf-config.txt 0644 0 0" >> $out
+fi
+if [ -f "./_ebpf/ebpf_log_monitor.sh" ]; then
+    echo "file /ebpf/ebpf_log_monitor.sh ./_ebpf/ebpf_log_monitor.sh 0755 0 0" >> $out
 fi
 
 echo "dir /etc 0755 0 0" >> $out

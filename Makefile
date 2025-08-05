@@ -51,8 +51,11 @@ build-kernel:
 
 build-workload:
 	make -C scripts/ebpf/
-	cp scripts/ebpf/ebpf_loader  workload/
-	cp scripts/ebpf/ebpf-vdiff.o workload/
+	mkdir -p workload/_ebpf/
+	cp scripts/ebpf/ebpf_loader         workload/_ebpf/
+	cp scripts/ebpf/ebpf-vdiff.o        workload/_ebpf/
+	cp scripts/ebpf/ebpf-config.txt     workload/_ebpf/
+	cp scripts/ebpf/ebpf_log_monitor.sh workload/_ebpf/
 	make -C workload/
 
 .PHONY: build build-kernel build-workload

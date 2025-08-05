@@ -24,6 +24,7 @@ struct {
     __type(value, __u32);
 } test_array SEC(".maps");
 
+// Primary tracepoint - should work on most kernels
 SEC("tp/syscalls/sys_enter_execve")
 int handle_tp(void *ctx) {
     pid_t pid = bpf_get_current_pid_tgid() >> 32;
@@ -38,11 +39,12 @@ int handle_tp(void *ctx) {
     return 0;
 }
 
-// SEC("tp/syscalls/sys_enter_write")
-// int handle_tp(void *ctx) {
-//     pid_t pid = bpf_get_current_pid_tgid() >> 32;
-//     if (pid_filter && pid != pid_filter)
-//         return 0;
-//     bpf_printk("BPF triggered sys_enter_write from PID %d.\n", pid);
-//     return 0;
-// }
+// Alternative tracepoint for broader compatibility
+SEC("tp/syscalls/sys_enter_write") 
+int handle_write(void *ctx) {
+    pid_t pid = bpf_get_current_pid_tgid() >> 32;
+    if (pid_filter && pid != pid_filter)
+        return 0;
+    bpf_printk("BPF triggered sys_enter_write from PID %d.\n", pid);
+    return 0;
+}
