@@ -7,3 +7,4 @@ from visualinux.runtime.linux.timer_list import *
 from visualinux.runtime.linux.inode import *
 from visualinux.runtime.linux.sysv import *
 from visualinux.runtime.linux.mm import *
+from visualinux.runtime.linux.bpf import *

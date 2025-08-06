@@ -26,29 +26,18 @@ define BPFHTabBucket as Box<bucket> [
 ]
 define BPFHTabElem as Box<htab_elem> [
     Text hash
-    Text key
-    Text<u64:x> value: @value
+    Text value: @value
 ] where {
-    keysz = ${*@map.key_size}
-    value = ${((uint64_t *)@this.key + @keysz)}
+    value = ${htab_elem_value(@map, @this)}
 }
 define BPFHashTable as Box<bpf_htab> [
     Shape map: @map
-    // Link buckets -> @buckets
-    Text n_buckets
     Link elems -> @elems
     Text elem_size
     Text hashrnd
 ] where {
     map = BPFMap(@this.map)
-    // n_buckets = ${*@this.n_buckets}
-    // buckets = Array("buckets": ${cast_to_parray(@this.buckets, bucket, @n_buckets)}).forEach |item| {
-    //     yield [ Link "bucket #{@index}" -> @bucket ] where {
-    //         bucket = BPFHTabBucket(@item)
-    //     }
-    // }
-    max_entries = ${*@this.map.max_entries}
-    elems = Array("elems": ${cast_to_parray(@this.elems, bucket, @max_entries)}).forEach |item| {
+    elems = Array("elems": ${get_elems_of_bpf_htab(@this)}).forEach |item| {
         yield [ Link "elem #{@index}" -> @elem ] where {
             elem = BPFHTabElem(@item)
         }
