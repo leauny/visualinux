@@ -16,7 +16,8 @@ define SigQueue as Box<sigqueue> [
 ]
 define SigPending as Box<sigpending> [
     Link list -> @list
-    SigSet signal
+    // Shape sigset: @sigset
+    Text<flag> sigset: signal.sig[0]
 ] where {
     list = List<sigpending.list>(@this.list).forEach |item| {
         yield SigQueue<sigqueue.list>(@item)
@@ -35,10 +36,9 @@ define SigAction as Box<k_sigaction> [
     Text<flag:signal> signame: ${@index + 1}
     Text<fptr> sa_handler: sa.sa_handler
     Text<flag:sigaction_x64> sa_flags: sa.sa_flags
-    Shape sa_mask: @sa_mask
-] where {
-    sa_mask = SigSet(@this.sa.sa_mask)
-}
+    // Shape sa_mask: @sa_mask
+    Text<flag> sa_mask: sa.sa_mask.sig[0]
+]
 define SigHandStruct as Box<sighand_struct> [
     Text<emoji:lock> locked: siglock.rlock.raw_lock.locked
     Text count: count.refs.counter

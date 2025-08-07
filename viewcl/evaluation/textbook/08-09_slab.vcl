@@ -5,7 +5,7 @@
 
 define SLAB_on_node as Box<slab> {
     :default [
-        Text<flag> __page_flags
+        Text<flag:page> __page_flags
         Text<string> slab_cache.name
         // Link freelist -> @freelist
         Text freelist

@@ -29,7 +29,7 @@ class SnapshotDiffSynthesizer {
     }
     private calcStateViewDiff(viewname: string, viewSrc: StateView, viewDst: StateView): StateView {
         // init empty
-        const viewDiff = new StateView(viewname, { boxes: {}, containers: {} }, viewDst.plot, {}, 0);
+        const viewDiff = new StateView(viewname, { boxes: {}, containers: {} }, viewDst.plot, {}, 0, true);
         // rewrite not co-exist objects with $old/$new suffix
         this.rewriteObjectKeyForViewDiff(viewSrc, viewDst);
         // boxes

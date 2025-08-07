@@ -17,12 +17,14 @@ export class StateView {
     public plot: ShapeKey[]
     public init_attrs: ViewAttrs // TODO: clarify where are attrs attached to
     public stat: number
-    constructor(name: string, pool: Pool, plot: ShapeKey[], init_attrs: ViewAttrs, stat: number) {
+    public is_diff: boolean
+    constructor(name: string, pool: Pool, plot: ShapeKey[], init_attrs: ViewAttrs, stat: number, is_diff: boolean = false) {
         this.name = name;
         this.pool = pool;
         this.plot = plot;
         this.init_attrs = init_attrs;
         this.stat = stat;
+        this.is_diff = is_diff;
     }
     //
     // getters

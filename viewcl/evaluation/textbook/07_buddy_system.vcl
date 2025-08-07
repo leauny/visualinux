@@ -21,11 +21,11 @@ define PCP as Box<per_cpu_pages> [
     Shape lists: @lists
 ] where {
     lists = Array(@this.lists).forEach |item| {
-        // yield Box(@item) [
+        // yield Box("list #{@index}": @item) [
         //     Text next
         // ]
-        yield Box(@item) [
-            Link list -> @list
+        yield Box("list #{@index}": @item) [
+            Link "list #{@index}" -> @list
         ] where {
             list = List(@this).forEach |node| {
                 yield PagePCP<page.pcp_list>(@node)
@@ -44,7 +44,8 @@ define Zone as Box<zone> [
     Text node
 ] where {
     free_area = Array(@this.free_area).forEach |item| {
-        yield FreeArea("${1 << @index}": @item)
+        // yield FreeArea("free_area_${1 << @index}": @item)
+        yield [ Text "nr_free_${1 << @index}": @item.nr_free ]
     }
     per_cpu_pageset = PCP(${per_cpu_ptr(@this.per_cpu_pageset, 0)})
 }

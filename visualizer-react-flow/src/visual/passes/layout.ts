@@ -4,7 +4,7 @@ import {
 } from "@app/visual/types";
 import { RendererInternalState, RendererPass } from "@app/visual/passes";
 import { type Node, type Edge } from "@xyflow/react";
-import Dagre from "@dagrejs/dagre";
+import Dagre, { layout } from "@dagrejs/dagre";
 import layoutDagreWrapper from "@app/visual/dagre";
 
 import * as sc from "@app/visual/nodes/styleconf";
@@ -262,6 +262,7 @@ export class Layouter extends RendererPass {
     private layoutGraphByDagre(nodes: Node[], edges: Edge[], graphOptions: Dagre.GraphLabel, rootNodes: string[]) {
         // Add Object.hasOwn polyfill for es2022 compatibility of @dagrejs/graphlib
         if (!Object.hasOwn) Object.hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+        console.log('layoutGraphByDagre', this.istat.view.name, this.istat.view.is_diff);
 
         // layout the graph by dagre
         const nodeRank = this.calcNodeRank(nodes, edges, rootNodes);
@@ -272,7 +273,11 @@ export class Layouter extends RendererPass {
         const layoutOptions: Dagre.configUnion = {
             disableOptimalOrderHeuristic: true
         }
-        layoutDagreWrapper(g as any, layoutOptions);
+        if (this.istat.view.is_diff) {
+            layout(g, layoutOptions);
+        } else {
+            layoutDagreWrapper(g as any, layoutOptions);
+        }
 
         // convert positions from dagre to react flow
         for (let node of nodes) {

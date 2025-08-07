@@ -26,7 +26,7 @@ define TimerBase as Box<timer_base> [
             NULL
         otherwise:
             Box("timer #{@index}": @item) [
-                Link list -> @timer_list
+                Link "timer #{@index}" -> @timer_list
             ] where {
                 timer_list = HList(@this).forEach |node| {
                     yield TimerList<timer_list.entry>(@node)
