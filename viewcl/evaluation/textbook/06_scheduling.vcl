@@ -2,9 +2,9 @@ define TaskSched as Box<task_struct> {
     :default [
         Text pid, comm
         Text<string> state: ${get_task_state(@this)}
-        Text ppid: parent.pid
     ]
     :default => :sched [
+        Text nivcsw
         Text vruntime: se.vruntime
     ]
     :default => :sched_details [
@@ -40,6 +40,7 @@ define RunqueueCFS as Box<cfs_rq> {
 }
 
 diag textbook_06_cfs_runqueue {
+    plot TaskSched("task_current": ${per_cpu_current_task(current_cpu())})
     plot RunqueueCFS(${&cpu_rq(0).cfs})
 } with {
     root = SELECT cfs_rq FROM *

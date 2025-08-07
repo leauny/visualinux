@@ -84,7 +84,7 @@ swapon $SWAP_FILE
 
 # workload entry
 
-./workload/test/summation
+./workload/test/demo
 
 # ./workload/stackrot/exploit
 

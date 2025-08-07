@@ -151,7 +151,7 @@ static void end_evaluation(void) {
 #define NPROC_THREADS 1
 #define NPROC_SOCKET  2
 #define NPROC_IPC     2
-#define NPROC_SCHED   6
+#define NPROC_SCHED   2
 #define NPROC (NPROC_THREADS + NPROC_SOCKET + 1 + NPROC_IPC + NPROC_SCHED)
 
 int * pfuck;
