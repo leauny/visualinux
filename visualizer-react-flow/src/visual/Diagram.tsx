@@ -4,20 +4,17 @@ import { Renderer } from "@app/visual/render";
 import {
     ReactFlowProvider,
     ReactFlow,
-    Background, Controls, MiniMap, Panel,
+    Background, Controls, MiniMap,
     type Node, type Edge,
     useNodesState, useEdgesState,
     useReactFlow,
-    getNodesBounds, getViewportForBounds,
 } from "@xyflow/react";
-import { toPng, toSvg } from "html-to-image";
 
 import "@xyflow/react/dist/style.css";
 import "../index.css";
 
 import { nodeTypes } from "@app/visual/nodes";
 import { edgeTypes } from "@app/visual/edges";
-import { DisplayOption } from "@app/context/Panels";
 import DiagramToolbar from "@app/panes/DiagramToolbar";
 
 export function PrimaryPane({ pKey }: { pKey: number }) {
@@ -85,18 +82,15 @@ function ReactFlowDiagram({ pKey }: { pKey: number }) {
         <ReactFlow
             nodes={nodes} nodeTypes={nodeTypes} onNodesChange={onNodesChange}
             edges={edges} edgeTypes={edgeTypes} onEdgesChange={onEdgesChange}
-            nodesConnectable={false} deleteKeyCode={null} // Prevent node deletion on backspace
+            nodesConnectable={false} deleteKeyCode={null}
             onSelect={() => {
-                console.log('selected');
+                console.error('unsupported onSelect');
             }}
             fitView
         >
             <Background />
             <MiniMap pannable={true} />
             <Controls />
-            {/* <Panel position="top-right">
-                <DownloadButton />
-            </Panel> */}
             {/* <Panel position="top-right">
                 <button onClick={() => onLayout('TB')}>vertical layout</button>
                 <button onClick={() => onLayout('LR')}>horizontal layout</button>

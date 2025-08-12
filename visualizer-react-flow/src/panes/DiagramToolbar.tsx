@@ -5,7 +5,8 @@ import { ButtonDef, ButtonsWrapper, ButtonWrapper } from "@app/panes/buttons";
 import * as icons from "@app/panes/libs/Icons";
 import { Snapshot } from "@app/visual/types";
 import { useReactFlow, getViewportForBounds, ReactFlowInstance } from "@xyflow/react";
-import { toPng, toSvg } from "html-to-image";
+// import { toPng, toSvg } from "html-to-image";
+import { toPng } from "html-to-image";
 
 export default function DiagramToolbar({ pKey }: { pKey: number }) {
     const rfInstance = useReactFlow();
@@ -54,14 +55,7 @@ export default function DiagramToolbar({ pKey }: { pKey: number }) {
         icon: <icons.AkarIconsDownload color="#5755d9"/>,
         desc: "download",
         ifEnabled: viewname !== undefined,
-        onClick: () => {
-            onClickDownload(rfInstance);
-            // let diagram  = diagramRef.current?.getDiagram();
-            // let filename = viewDisplayed?.slice(viewDisplayed.indexOf('.') + 1);
-            // if (diagram && filename) {
-            //     downloadDiagram(diagram, filename);
-            // }
-        }
+        onClick: () => downloadImage(rfInstance)
     }, {
         icon: <icons.AkarIconsTrashCan color="#5755d9"/>,
         desc: "remove",
@@ -92,54 +86,42 @@ export default function DiagramToolbar({ pKey }: { pKey: number }) {
     );
 }
 
-
-function downloadImage(dataUrl: string, fmt: string) {
+function downloadImage(rfInstance: ReactFlowInstance) {
+    // we calculate a transform for the nodes so that all nodes are visible
+    // we then overwrite the transform of the `.react-flow__viewport` element
+    // with the style option of the html-to-image library
+    const { getNodes, getNodesBounds } = rfInstance;
+    const nodesBounds = getNodesBounds(getNodes());
+    nodesBounds.width += nodesBounds.x * 2;
+    nodesBounds.height += nodesBounds.y * 2;
+    nodesBounds.x = 0;
+    nodesBounds.y = 0;
+    const viewport = getViewportForBounds(
+        nodesBounds,
+        nodesBounds.width, nodesBounds.height,
+        1, 1,
+        2,
+    );
+    // @ts-ignore
+    toPng(document.querySelector('.react-flow__viewport'), {
+        backgroundColor: '#ffffff',
+        width: nodesBounds.width,
+        height: nodesBounds.height,
+        style: {
+            width: nodesBounds.width,
+            height: nodesBounds.height,
+            transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+        },
+    }).then((data) => downloadImageByHtml(data, 'png'));
+    // }).then(data => downloadImageByHtml(data, 'svg'));
+}
+function downloadImageByHtml(dataUrl: string, fmt: string) {
     const a = document.createElement('a');
     a.setAttribute('download', `reactflow.${fmt}`);
     a.setAttribute('href', dataUrl);
     a.click();
     a.remove();
 }
-
-const onClickDownload = (rfInstance: ReactFlowInstance) => {
-    const { getNodes, getNodesBounds } = rfInstance;
-    // TODO: create a function to calculate the image size based on the position and size of the nodes
-    const imageWidth = 1200;
-    const imageHeight = 4000;
-    // we calculate a transform for the nodes so that all nodes are visible
-    // we then overwrite the transform of the `.react-flow__viewport` element
-    // with the style option of the html-to-image library
-    const nodesBounds = getNodesBounds(getNodes());
-    const viewport = getViewportForBounds(
-        nodesBounds,
-        imageWidth,
-        imageHeight,
-        1,
-        1,
-        2,
-    );
-    // @ts-ignore
-    toPng(document.querySelector('.react-flow__viewport'), {
-        backgroundColor: '#ffffff',
-        width: imageWidth,
-        height: imageHeight,
-        style: {
-            width: imageWidth,
-            height: imageHeight,
-            transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-        },
-    }).then((data) => downloadImage(data, 'png'));
-    // toSvg(document.querySelector('.react-flow__viewport'), {
-    //     backgroundColor: 'transparent',
-    //     width: imageWidth,
-    //     height: imageHeight,
-    //     style: {
-    //         width: imageWidth,
-    //         height: imageHeight,
-    //         transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-    //     },
-    // }).then(data => downloadImage(data, 'svg'));
-};
 
 function ViewSelector({ pKey }: { pKey: number }) {
     const { state, stateDispatch } = useContext(GlobalStateContext);
@@ -154,7 +136,6 @@ function ViewSelector({ pKey }: { pKey: number }) {
 
     const handleSelect = (viewname: string) => {
         stateDispatch({ command: 'SWITCH', pKey, viewname });
-        // setDisplayed({ ...displayed, viewname });
         closeDropdown();
     };
 
@@ -197,7 +178,6 @@ function SnapshotSelector({ pKey }: { pKey: number }) {
 
     const handleSelect = (snKey: string) => {
         stateDispatch({ command: 'USE', pKey, snKey });
-        // setDisplayed({ ...displayed, snKey });
         closeDropdown();
     };
 
