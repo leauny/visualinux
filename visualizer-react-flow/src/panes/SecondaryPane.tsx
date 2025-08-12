@@ -4,7 +4,7 @@ import { ButtonDef, ButtonsWrapper, ButtonWrapper } from "@app/panes/buttons";
 
 import { useContext, useMemo, useRef, useState } from "react";
 import { Rnd } from "react-rnd";
-import Diagram from "@app/visual/Diagram";
+import { PrimaryPane } from "@app/visual/Diagram";
 
 export default function SecondaryPane({ node }: { node: SecondaryPanel }) {
     const [rndPosition, setRndPosition] = useState({
@@ -69,7 +69,7 @@ export default function SecondaryPane({ node }: { node: SecondaryPanel }) {
                         {buttons.map((btn, i) => <ButtonWrapper buttonDef={btn} key={i}/>)}
                     </ButtonsWrapper>
                 </div>
-                <Diagram pKey={node.key} updateSelected={() => {}}/>
+                <PrimaryPane pKey={node.key} />
                 {/* <GoJSDiagram modelData={modelData} diagramRef={diagramRef} style={{backgroundColor: 'seashell'}}/> */}
             </div>
         </Rnd>

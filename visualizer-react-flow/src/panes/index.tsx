@@ -2,7 +2,7 @@ import { useContext, useState } from "react";
 import SplitPane, { Pane } from "split-pane-react";
 import { GlobalStateContext } from "@app/context/Context";
 import { PrimaryArea, PrimaryPanel, SecondaryPanel, isPrimaryPanel } from "@app/context/Panels";
-import PrimaryPane from "@app/panes/PrimaryPane";
+import { PrimaryPane } from "@app/visual/Diagram";
 import SecondaryPane from "@app/panes/SecondaryPane";
 
 import "@app/panes/style.css";
@@ -24,7 +24,7 @@ function PrimaryPanes({ node }: { node: PrimaryArea | PrimaryPanel }) {
     if (isPrimaryPanel(node)) {
         return (
             <Pane key={node.key} minSize={minPrimaryPaneSize} className="h-full">
-                <PrimaryPane pKey={node.key}/>
+                <PrimaryPane pKey={node.key} />
             </Pane>
         );
     }

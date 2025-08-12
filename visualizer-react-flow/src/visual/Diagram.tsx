@@ -1,6 +1,5 @@
-import React, { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { GlobalStateContext } from "@app/context/Context";
-import { ReactFlowGraph } from "@app/visual/types";
 import { Renderer } from "@app/visual/render";
 import {
     ReactFlowProvider,
@@ -19,24 +18,28 @@ import "../index.css";
 import { nodeTypes } from "@app/visual/nodes";
 import { edgeTypes } from "@app/visual/edges";
 import { DisplayOption } from "@app/context/Panels";
+import DiagramToolbar from "@app/panes/DiagramToolbar";
 
-export default function Diagram({ displayed, updateSelected }: { displayed: DisplayOption, updateSelected: (s: string | undefined) => void }) {
+export function PrimaryPane({ pKey }: { pKey: number }) {
     return (
         <ReactFlowProvider>
-            <ReactFlowDiagram displayed={displayed} updateSelected={updateSelected} />
+            <div className="h-full flex flex-col border-2 border-[#5755d9]">
+                <DiagramToolbar pKey={pKey} />
+                <div className="flex h-full bg-white">
+                    <ReactFlowDiagram pKey={pKey} />
+                </div>
+            </div>
         </ReactFlowProvider>
     );
 }
 
-// function ReactFlowDiagram({ displayed, updateSelected }: { displayed: DisplayOption, updateSelected: (s: string | undefined) => void }) {
-const ReactFlowDiagram = React.memo(({ displayed, updateSelected }: { displayed: DisplayOption, updateSelected: (s: string | undefined) => void }) => {
-    const { state, stateDispatch } = useContext(GlobalStateContext);
-    // const displayed = state.panels.getDisplayed(pKey);
+function ReactFlowDiagram({ pKey }: { pKey: number }) {
+    const { state } = useContext(GlobalStateContext);
+    const displayed = useMemo(() => state.panels.getDisplayed(pKey), [state, pKey]);
     const [renderer] = useState<Renderer>(() => {
         const { view, attrs } = state.getPlot(displayed);
         return new Renderer(view, attrs);
     });
-    const [graph, setGraph] = useState<ReactFlowGraph>({ nodes: [], edges: [] });
     const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
     const [shouldUpdate, setShouldUpdate] = useState<[string, string, string] | undefined>(undefined);
@@ -45,7 +48,6 @@ const ReactFlowDiagram = React.memo(({ displayed, updateSelected }: { displayed:
     useEffect(() => {
         const { view, attrs } = state.getPlot(displayed);
         renderer.reset(view, attrs);
-        console.log('getplotofpanel', view, attrs);
         // clear-then-reset to avoid react-flow render error (root cause of which is unknown)
         setNodes([]);
         setEdges([]);
@@ -60,7 +62,6 @@ const ReactFlowDiagram = React.memo(({ displayed, updateSelected }: { displayed:
                     return node;
                 });
                 let { nodes, edges } = renderer.finalize();
-                setGraph(graph);
                 setNodes(nodes);
                 setEdges(edges);
                 setTimeout(() => {
@@ -73,9 +74,8 @@ const ReactFlowDiagram = React.memo(({ displayed, updateSelected }: { displayed:
     }, [displayed]);
     useEffect(() => {
         if (shouldUpdate) {
-            let graph = renderer.refresh(...shouldUpdate);
+            renderer.refresh(...shouldUpdate);
             let { nodes, edges } = renderer.finalize();
-            setGraph(graph);
             setNodes(nodes);
             setEdges(edges);
             setShouldUpdate(undefined);
@@ -94,96 +94,13 @@ const ReactFlowDiagram = React.memo(({ displayed, updateSelected }: { displayed:
             <Background />
             <MiniMap pannable={true} />
             <Controls />
-            <Panel position="top-right">
+            {/* <Panel position="top-right">
                 <DownloadButton />
-            </Panel>
+            </Panel> */}
             {/* <Panel position="top-right">
                 <button onClick={() => onLayout('TB')}>vertical layout</button>
                 <button onClick={() => onLayout('LR')}>horizontal layout</button>
             </Panel> */}
         </ReactFlow>
     );
-}, (prevProps, nextProps) => {
-    const prevDisplayed = prevProps.displayed;
-    const nextDisplayed = nextProps.displayed;
-    if (prevDisplayed.snKey != nextDisplayed.snKey || prevDisplayed.viewname != nextDisplayed.viewname) {
-        return false;
-    }
-    if (prevDisplayed.viewname === undefined || nextDisplayed.viewname === undefined) {
-        return true;
-    }
-    if (prevDisplayed.viewAttrs === undefined || nextDisplayed.viewAttrs === undefined) {
-        return true;
-    }
-    const prevAttrs = prevDisplayed.viewAttrs[prevDisplayed.viewname];
-    const nextAttrs = nextDisplayed.viewAttrs[nextDisplayed.viewname];
-    for (const key in prevAttrs) {
-        if (prevAttrs[key] != nextAttrs[key]) {
-            return false;
-        }
-    }
-    for (const key in nextAttrs) {
-        if (prevAttrs[key] != nextAttrs[key]) {
-            return false;
-        }
-    }
-    return true;
-});
-
-function downloadImage(dataUrl: string, fmt: string) {
-    const a = document.createElement('a');
-    a.setAttribute('download', `reactflow.${fmt}`);
-    a.setAttribute('href', dataUrl);
-    a.click();
-    a.remove();
 }
-
-function DownloadButton() {
-    const { getNodes } = useReactFlow();
-    // TODO: create a function to calculate the image size based on the position and size of the nodes
-    const imageWidth = 1200;
-    const imageHeight = 4000;
-    const onClick = () => {
-        // we calculate a transform for the nodes so that all nodes are visible
-        // we then overwrite the transform of the `.react-flow__viewport` element
-        // with the style option of the html-to-image library
-        const nodesBounds = getNodesBounds(getNodes());
-        const viewport = getViewportForBounds(
-            nodesBounds,
-            imageWidth,
-            imageHeight,
-            1,
-            1,
-            2,
-        );
-        // @ts-ignore
-        toPng(document.querySelector('.react-flow__viewport'), {
-            backgroundColor: '#ffffff',
-            width: imageWidth,
-            height: imageHeight,
-            style: {
-                width: imageWidth,
-                height: imageHeight,
-                transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-            },
-        }).then(data => downloadImage(data, 'png'));
-        // toSvg(document.querySelector('.react-flow__viewport'), {
-        //     backgroundColor: 'transparent',
-        //     width: imageWidth,
-        //     height: imageHeight,
-        //     style: {
-        //         width: imageWidth,
-        //         height: imageHeight,
-        //         transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-        //     },
-        // }).then(data => downloadImage(data, 'svg'));
-    };
-   
-    return (
-      <Panel position="top-right">
-        <button className="download-btn" onClick={onClick}>
-          Download Image
-        </button>
-      </Panel>
-    );
-  }

@@ -1,4 +1,4 @@
-import { Direction } from '@app/panes/model/state';
+import { Direction } from '@app/context/Panels';
 
 import './btn-4d.css';
 

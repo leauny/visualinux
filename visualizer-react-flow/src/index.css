@@ -52,3 +52,7 @@
     border-color: rgb(100, 100, 100) !important;
     border-style: dashed !important;
 }
+
+.react-flow__edges {
+    z-index: 1100 !important;
+}

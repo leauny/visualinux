@@ -1,51 +1,18 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { GlobalStateContext } from "@app/context/Context";
 import { SplitDirection } from "@app/context/Panels";
-import Diagram from "@app/visual/Diagram";
 import { ButtonDef, ButtonsWrapper, ButtonWrapper } from "@app/panes/buttons";
 import * as icons from "@app/panes/libs/Icons";
 import { Snapshot } from "@app/visual/types";
+import { useReactFlow, getViewportForBounds, ReactFlowInstance } from "@xyflow/react";
+import { toPng, toSvg } from "html-to-image";
 
-type useStateSelected = typeof useState<string | undefined>;
-
-export default function PrimaryPane({ pKey }: { pKey: number }) {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    // useMemo(() => model.initDiagramRef(wKey, diagramRef), []);
-    // this is used to update buttons ifEnabled() without refreshing the diagram
-    // let [selected, setSelected] = useState<string | undefined>(undefined);
-    const { state } = useContext(GlobalStateContext);
-    const displayed = state.panels.getDisplayed(pKey);
-    let [selected, setSelected]: ReturnType<useStateSelected> | [null, null] = [null, null];
-    const onChildMount = (dataFromChild: ReturnType<useStateSelected>) => {
-        selected = dataFromChild[0];
-        setSelected = dataFromChild[1];
-    };
-    let updateSelected = (s: string | undefined) => {
-        if (setSelected) setSelected(s);
-        // diagramRef.current?.forceUpdate();
-    };
-    //
-    return (
-        <div className="h-full flex flex-col border-2 border-[#5755d9]">
-            <PrimaryWindowHeader pKey={pKey} onMount={onChildMount}/>
-            <div className="flex h-full bg-white">
-                <Diagram displayed={displayed} />
-            </div>
-        </div>
-    );
-}
-
-export function PrimaryWindowHeader({ pKey, onMount }: {
-    pKey: number,
-    onMount: (dataFromChild: ReturnType<useStateSelected>) => void
-}) {
+export default function DiagramToolbar({ pKey }: { pKey: number }) {
+    const rfInstance = useReactFlow();
     const { state, stateDispatch } = useContext(GlobalStateContext);
     let viewname = useMemo(() => state.panels.getViewname(pKey), [state, pKey]);
     //
     let [selected, setSelected] = useState<string | undefined>(undefined);
-    useEffect(() => {
-        onMount([selected, setSelected]);
-    }, [onMount, selected]);
     //
     let clickSplit = (direction: SplitDirection) => {
         console.log('click split', pKey, SplitDirection[direction]);
@@ -88,7 +55,7 @@ export function PrimaryWindowHeader({ pKey, onMount }: {
         desc: "download",
         ifEnabled: viewname !== undefined,
         onClick: () => {
-            alert('download to-be-reimplemented');
+            onClickDownload(rfInstance);
             // let diagram  = diagramRef.current?.getDiagram();
             // let filename = viewDisplayed?.slice(viewDisplayed.indexOf('.') + 1);
             // if (diagram && filename) {
@@ -124,6 +91,55 @@ export function PrimaryWindowHeader({ pKey, onMount }: {
         </div>
     );
 }
+
+
+function downloadImage(dataUrl: string, fmt: string) {
+    const a = document.createElement('a');
+    a.setAttribute('download', `reactflow.${fmt}`);
+    a.setAttribute('href', dataUrl);
+    a.click();
+    a.remove();
+}
+
+const onClickDownload = (rfInstance: ReactFlowInstance) => {
+    const { getNodes, getNodesBounds } = rfInstance;
+    // TODO: create a function to calculate the image size based on the position and size of the nodes
+    const imageWidth = 1200;
+    const imageHeight = 4000;
+    // we calculate a transform for the nodes so that all nodes are visible
+    // we then overwrite the transform of the `.react-flow__viewport` element
+    // with the style option of the html-to-image library
+    const nodesBounds = getNodesBounds(getNodes());
+    const viewport = getViewportForBounds(
+        nodesBounds,
+        imageWidth,
+        imageHeight,
+        1,
+        1,
+        2,
+    );
+    // @ts-ignore
+    toPng(document.querySelector('.react-flow__viewport'), {
+        backgroundColor: '#ffffff',
+        width: imageWidth,
+        height: imageHeight,
+        style: {
+            width: imageWidth,
+            height: imageHeight,
+            transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+        },
+    }).then((data) => downloadImage(data, 'png'));
+    // toSvg(document.querySelector('.react-flow__viewport'), {
+    //     backgroundColor: 'transparent',
+    //     width: imageWidth,
+    //     height: imageHeight,
+    //     style: {
+    //         width: imageWidth,
+    //         height: imageHeight,
+    //         transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+    //     },
+    // }).then(data => downloadImage(data, 'svg'));
+};
 
 function ViewSelector({ pKey }: { pKey: number }) {
     const { state, stateDispatch } = useContext(GlobalStateContext);
