@@ -26,6 +26,12 @@
 } */
 .box-node, .container-node {
     cursor: default !important;
+    border-width: 3px !important;
+    border-radius: 6px !important;
+    font-size: 18.5px !important;
+}
+.text-base, .text-sm {
+    font-size: 18.5px !important;
 }
 .box-node:hover, .container-node:hover {
     box-shadow: 0 1px 4px 1px rgba(0, 0, 0, 0.15) !important;

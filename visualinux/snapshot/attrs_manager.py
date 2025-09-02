@@ -240,6 +240,13 @@ def is_val_numeric(val: Any) -> bool:
     return val.isdigit() or is_val_hexdigit(val)
 
 def val_to_numeric(val: Any) -> int:
-    if isinstance(val, str) and is_val_hexdigit(val):
-        return int(val, 16)
+    if isinstance(val, str):
+        if is_val_hexdigit(val):
+            return int(val, 16)
+        elif val == 'true':
+            return 1
+        elif val == 'false':
+            return 0
+    if isinstance(val, bool):
+        return 1 if val else 0
     return int(val)

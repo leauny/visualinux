@@ -86,7 +86,7 @@ export class Converter {
             id: box.key, type: 'box',
             data: {} as BoxNodeData,
             position: { x: 0, y: 0 },
-            draggable: false,
+            draggable: true,
         };
         if (box.parent !== null) {
             node.parentId = box.parent;
@@ -215,7 +215,7 @@ export class Converter {
                 parent: container.parent,
             },
             position: { x: 0, y: 0 },
-            draggable: false,
+            draggable: true,
         };
         this.istat.nodeMap[node.id] = node;
         this.graph.nodes.push(node);

@@ -96,7 +96,7 @@ export class Layouter extends RendererPass {
                 }
                 const { labelLines, valueLines } = sc.TextFieldAdaption(label, value, depth);
                 height += 2 * sc.textPadding;
-                height += 16 * Math.max(labelLines.length, valueLines.length);
+                height += 18 * Math.max(labelLines.length, valueLines.length);
                 continue;
             }
             // handle non-primitive, i.e, box members
@@ -254,7 +254,7 @@ export class Layouter extends RendererPass {
             target: getRoot(edge.target),
         }));
         let layoutOptions: Dagre.GraphLabel = {
-            rankdir: 'LR', ranksep: 128,
+            rankdir: 'LR', ranksep: 64,
             marginx: 16, marginy: 16,
         };
         this.layoutGraphByDagre(nodes, edges, layoutOptions, this.istat.view.plot);
@@ -273,11 +273,12 @@ export class Layouter extends RendererPass {
         const layoutOptions: Dagre.configUnion = {
             disableOptimalOrderHeuristic: true
         }
-        if (this.istat.view.is_diff) {
-            layout(g, layoutOptions);
-        } else {
-            layoutDagreWrapper(g as any, layoutOptions);
-        }
+        layout(g, layoutOptions);
+        // if (this.istat.view.is_diff) {
+        //     layout(g, layoutOptions);
+        // } else {
+        //     layoutDagreWrapper(g as any, layoutOptions);
+        // }
 
         // convert positions from dagre to react flow
         for (let node of nodes) {
@@ -367,6 +368,9 @@ export class Layouter extends RendererPass {
                 this.dfsCalcNodeRank(node.parentId, edgeMap, nodeVisited, nodeRank);
             }
             nodeRank[edge.target] = nodeRank[nodeKey] + 2;
+            if (nodeKey.startsWith('0xffff888005aeb800')) {
+                nodeRank[edge.target] -= 2;
+            }
             this.dfsCalcNodeRank(edge.target, edgeMap, nodeVisited, nodeRank);
         }
     }

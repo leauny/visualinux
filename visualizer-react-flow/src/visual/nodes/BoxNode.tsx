@@ -171,7 +171,7 @@ function LinkField({
     const isDiffAdd = label.endsWith('$new') ? true : (label.endsWith('$old') ? false : undefined);
     const color = sc.TextColor(isDiffAdd);
     const txStyle = [isShadow ? 'opacity-80' : '', isDiffAdd === false ? 'line-through' : ''].join(' ');
-    // const txStyle = isShadow ? 'opacity-80' : '';
+    const tbStyle = isShadow ? 'opacity-80' : '';
     const bdStyle = isShadow ? 'border-dotted' : '';
     const {
         labelDelta, labelLines, valueLines
@@ -193,7 +193,7 @@ function LinkField({
                         if (member.target) {
                             notifier(member.target, 'trimmed');
                         }
-                    }} condition={member.isTargetTrimmed ?? false} extraClassName={`border-[${color}] ${bdStyle} text-[${color}] ${txStyle} select-text nodrag nopan`} />
+                    }} condition={member.isTargetTrimmed ?? false} extraClassName={`border-[${color}] ${bdStyle} text-[${color}] ${tbStyle} select-text nodrag nopan`} />
                 }
             </div>
         </div>

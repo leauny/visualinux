@@ -5,6 +5,7 @@ import {
 import { Converter } from "@app/visual/converter";
 import {
     RendererInternalState,
+    Reorder,
     AttrSetter,
     ClickCollapseRefresher, ClickTrimRefresher,
     Finalizer, Layouter
@@ -25,7 +26,7 @@ export class Renderer {
         }
     }
     public create() {
-        for (const Pass of [AttrSetter]) {
+        for (const Pass of [Reorder, AttrSetter]) {
             this.graph = Pass.render(this.state, this.graph);
         }
         return this.graph;

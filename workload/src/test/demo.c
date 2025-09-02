@@ -92,15 +92,15 @@ static void do_prepare_file_mapping(void) {
     }
     printf("filerw finished\n");
     //
-    if ((faddrs[0] = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fmap_fd, 0)) == MAP_FAILED) {
+    if ((faddrs[0] = mmap(NULL, 4096, PROT_READ, MAP_SHARED, fmap_fd, 0)) == MAP_FAILED) {
         perror("mmap");
         exit(1);
     }
-    if ((faddrs[1] = mmap(NULL, 4096 * 2, PROT_READ, MAP_SHARED, fmap_fd, 4096)) == MAP_FAILED) {
+    if ((faddrs[1] = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fmap_fd, 4096)) == MAP_FAILED) {
         perror("mmap");
         exit(1);
     }
-    if ((faddrs[2] = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_PRIVATE, fmap_fd, 4096 * 3)) == MAP_FAILED) {
+    if ((faddrs[2] = mmap(NULL, 4096 * 2, PROT_READ | PROT_WRITE, MAP_PRIVATE, fmap_fd, 4096 * 2)) == MAP_FAILED) {
         perror("mmap");
         exit(1);
     }
@@ -108,10 +108,13 @@ static void do_prepare_file_mapping(void) {
         perror("mmap");
         exit(1);
     }
-    if ((faddrs[4] = mmap(NULL, 4096, PROT_WRITE, MAP_SHARED, fmap_fd, 4096 * 7)) == MAP_FAILED) {
+    // munmap(faddrs[1], 4096);
+    // getsid(getpid());
+    if ((faddrs[4] = mmap(NULL, 4096, PROT_READ, MAP_SHARED, fmap_fd, 4096)) == MAP_FAILED) {
         perror("mmap");
         exit(1);
     }
+    // getsid(getpid());
     for (int i = 0; i < 5; i ++) {
         printf("Mapped file region at address: %p\n", faddrs[i]);
     }

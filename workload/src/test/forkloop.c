@@ -12,11 +12,11 @@ int sched_getcpu(void);
 pid_t gettid(void);
 
 #define MAXTHREAD 20
-int nfork = 10;
+int nfork = 5;
 
 void * foo(void * arg) {
     printf("foo %lu\n", (uintptr_t)arg);
-    for (int volatile i = 0; i < 1e7; i ++);
+    for (int volatile i = 0; i < 2e7; i ++);
     printf("foo %lu ok\n", (uintptr_t)arg);
 }
 

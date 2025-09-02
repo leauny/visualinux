@@ -13,7 +13,7 @@ define AnonVMASimple as Box<anon_vma> [
 define VMArea as Box<vm_area_struct> [
     Text<u64:x> vm_start, vm_end
     Text<flag:vm_basic> vm_flags
-    Text<bool> is_writable: ${vma_is_writable(@this)}
+    Text<bool> writable: ${vma_is_writable(@this)}
     Link vm_file -> @vm_file
     Link anon_vma -> @anon_vma
 ] where {
@@ -153,6 +153,6 @@ diag textbook_10_task_mm_mt {
 
     writable = SELECT vm_area_struct
         FROM *
-        WHERE is_writable == true
+        WHERE writable == true
     UPDATE writable WITH trimmed: true
 }

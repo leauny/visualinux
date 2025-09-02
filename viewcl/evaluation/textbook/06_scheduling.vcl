@@ -36,7 +36,7 @@ define RunqueueCFS as Box<cfs_rq> {
     sched_tree = RBTree<cfs_rq.tasks_timeline>(@this.tasks_timeline).forEach |node| {
         yield TaskSched<task_struct.se.run_node>(@node)
     }
-    sched_queue = Array.convFrom(@sched_tree)
+    sched_queue = Array.convFrom(@sched_tree, task_struct)
 }
 
 diag textbook_06_cfs_runqueue {
@@ -44,7 +44,7 @@ diag textbook_06_cfs_runqueue {
     plot RunqueueCFS(${&cpu_rq(0).cfs})
 } with {
     root = SELECT cfs_rq FROM *
-    UPDATE root WITH view: sched_tree
+    UPDATE root WITH view: sched_queue
 
     rq = SELECT cfs_rq->tasks_timeline FROM *
     UPDATE rq WITH direction: vertical
