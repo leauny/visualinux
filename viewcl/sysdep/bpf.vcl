@@ -45,8 +45,9 @@ define BPFHashTable as Box<bpf_htab> [
 }
 
 define BPFProgAux as Box<bpf_prog_aux> [
-    Text used_map_cnt
+    Text name
     Text id
+    Text used_map_cnt
     Text attach_btf_trace
     Link used_maps -> @used_maps
 ] where {

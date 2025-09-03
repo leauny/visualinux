@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from visualinux.common import *
 from visualinux.cmd import *
-from visualinux.trace_alloc import *
+from visualinux.jhash_test import *
 
 try:
     VPlot()

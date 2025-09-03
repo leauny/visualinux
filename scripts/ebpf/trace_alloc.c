@@ -110,7 +110,6 @@ static __always_inline void log_cache_alloc_event(__u64 addr, void *ctx) {
     bpf_perf_event_output(ctx, &alloc_events, BPF_F_CURRENT_CPU, &addr, sizeof(addr));
 }
 
-/* Allocation kretprobes */
 SEC("kretprobe/__kmalloc")
 int kretprobe_kmalloc(struct pt_regs *ctx) {
     __u64 addr = (__u64)PT_REGS_RC(ctx);
@@ -124,20 +123,5 @@ int kretprobe_cache_alloc(struct pt_regs *ctx) {
     log_cache_alloc_event(addr, ctx);
     return 0;
 }
-
-// /* Free kprobes */
-// SEC("kprobe/kfree")
-// int kprobe_kfree(struct pt_regs *ctx) {
-//     __u64 ptr = (__u64)PT_REGS_PARM1(ctx);
-//     bpf_printk("BPF kfree addr=0x%llx", ptr);
-//     return 0;
-// }
-
-// SEC("kprobe/kmem_cache_free")
-// int kprobe_cache_free(struct pt_regs *ctx) {
-//     __u64 ptr = (__u64)PT_REGS_PARM2(ctx);
-//     bpf_printk("BPF cache_free addr=0x%llx", ptr);
-//     return 0;
-// }
 
 char _license[] SEC("license") = "GPL";

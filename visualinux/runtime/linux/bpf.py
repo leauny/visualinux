@@ -1,7 +1,8 @@
 from visualinux import *
 from visualinux.runtime.kvalue import *
+from visualinux.runtime.linux.jhash import jhash
 
-def __round_up(x: int, y: int) -> int:
+def round_up(x: int, y: int) -> int:
     '''#define __round_mask(x, y) ((__typeof__(x))((y)-1))
        #define round_up(x, y) ((((x)-1) | __round_mask(x, y))+1)
     '''
@@ -27,5 +28,9 @@ def htab_elem_value(map: KValue, elem: KValue) -> KValue:
     key_size = map.eval_field('key_size').dereference().value_uint(ptr_size)
     value_size = map.eval_field('value_size').dereference().value_uint(ptr_size)
     key = elem.eval_field('key').value_uint(ptr_size)
-    value = KValue(GDBType.basic(f'int{value_size * 8}_t').pointer(), key + __round_up(key_size, 8))
+    value = KValue(GDBType.basic(f'int{value_size * 8}_t').pointer(), key + round_up(key_size, 8))
     return value
+
+def htab_map_hash(key: KValue, key_len: KValue, hashrnd: KValue) -> KValue:
+    hsh = jhash(key.value_uint(ptr_size), key_len.value_uint(ptr_size), hashrnd.value_uint(ptr_size))
+    return KValue(GDBType.basic(f'int{ptr_size * 8}_t'), hsh)
