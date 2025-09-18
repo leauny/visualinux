@@ -53,6 +53,7 @@ static __always_inline bool addr_tracked(__u64 addr) {
 static __always_inline void init_tracked_addrs_if_needed(void) {
     // ALL VARIABLE DECLARATIONS MUST BE AT THE TOP
     __u8 value = 7;
+    __u8 value_x = 8;
     __u8 *read_val = NULL;
     int ret;
 
@@ -67,6 +68,8 @@ static __always_inline void init_tracked_addrs_if_needed(void) {
         // Successfully inserted, so we need to initialize the rest
         bpf_printk("BPF first time init - continuing");
         
+        bpf_printk("BPF updating addr #0 x: %llx", initial_addrs[0]);
+        bpf_map_update_elem(&tracked_addrs, &initial_addrs[0], &value_x, BPF_ANY);
         bpf_printk("BPF updating addr #1: %llx", initial_addrs[1]);
         bpf_map_update_elem(&tracked_addrs, &initial_addrs[1], &value, BPF_ANY);
         bpf_printk("BPF updating addr #2: %llx", initial_addrs[2]);
@@ -76,6 +79,8 @@ static __always_inline void init_tracked_addrs_if_needed(void) {
         bpf_printk("BPF updating addr #4: %llx", initial_addrs[4]);
         bpf_map_update_elem(&tracked_addrs, &initial_addrs[4], &value, BPF_ANY);
         
+        bpf_map_delete_elem(&tracked_addrs, &initial_addrs[2]);
+
         // Verify readback
         read_val = bpf_map_lookup_elem(&tracked_addrs, &initial_addrs[0]);
         if (read_val) bpf_printk("BPF readback addr #0: %llx val=%d", initial_addrs[0], *read_val);
@@ -111,14 +116,14 @@ static __always_inline void log_cache_alloc_event(__u64 addr, void *ctx) {
 }
 
 SEC("kretprobe/__kmalloc")
-int kretprobe_kmalloc(struct pt_regs *ctx) {
+int vdiff_monitor(struct pt_regs *ctx) {
     __u64 addr = (__u64)PT_REGS_RC(ctx);
     log_kmalloc_event(addr, ctx);
     return 0;
 }
 
 SEC("kretprobe/kmem_cache_alloc")
-int kretprobe_cache_alloc(struct pt_regs *ctx) {
+int vdiff_monitor_2(struct pt_regs *ctx) {
     __u64 addr = (__u64)PT_REGS_RC(ctx);
     log_cache_alloc_event(addr, ctx);
     return 0;

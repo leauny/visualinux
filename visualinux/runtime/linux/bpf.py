@@ -1,5 +1,6 @@
 from visualinux import *
 from visualinux.runtime.kvalue import *
+from visualinux.runtime.linux.common import container_of
 from visualinux.runtime.linux.jhash import jhash
 
 def round_up(x: int, y: int) -> int:
@@ -23,8 +24,15 @@ def get_elems_of_bpf_htab(htab: KValue) -> PyListOfKValues:
 
     return PyListOfKValues(elems)
 
+def __htab_elem_key(elem: KValue, key_size: int) -> KValue:
+    key = KValue(GDBType.basic(f'int{key_size * 8}_t').pointer(), elem.eval_field('key').value_uint(ptr_size))
+    return key
+
+def htab_elem_key(map: KValue, elem: KValue) -> KValue:
+    key_size = map.eval_field('key_size').dereference().value_uint(ptr_size)
+    return __htab_elem_key(elem, key_size)
+
 def htab_elem_value(map: KValue, elem: KValue) -> KValue:
-    # print(f'htab_elem_value | {__round_up(key_size, 8) = !s}')
     key_size = map.eval_field('key_size').dereference().value_uint(ptr_size)
     value_size = map.eval_field('value_size').dereference().value_uint(ptr_size)
     key = elem.eval_field('key').value_uint(ptr_size)
@@ -33,4 +41,52 @@ def htab_elem_value(map: KValue, elem: KValue) -> KValue:
 
 def htab_map_hash(key: KValue, key_len: KValue, hashrnd: KValue) -> KValue:
     hsh = jhash(key.value_uint(ptr_size), key_len.value_uint(ptr_size), hashrnd.value_uint(ptr_size))
-    return KValue(GDBType.basic(f'int{ptr_size * 8}_t'), hsh)
+    return KValue(GDBType.basic(f'int{ptr_size}_t'), hsh)
+
+def htab_elem_lookup_raw(head: KValue, v_hash: KValue, v_key: KValue, v_key_size: KValue) -> KValue:
+    '''
+    hlist_nulls_for_each_entry_rcu(l, n, head, hash_node)
+        if (l->hash == hash && !memcmp(&l->key, key, key_size))
+        return l;
+    '''
+    hash = v_hash.value_uint(ptr_size)
+    key_size = v_key_size.value_uint(ptr_size)
+    key = v_key.value_uint(key_size * 8)
+    print(f'htab_elem_lookup_raw | {hash=}, {key=}, {key_size=}')
+
+    node = head.eval_field('first')
+    while node.value_uint(ptr_size) != 0:
+        elem = container_of(node, 'htab_elem', 'hash_node')
+        elem_hash = elem.eval_field('hash').dereference().value_uint(ptr_size)
+        elem_key = __htab_elem_key(elem, key_size).dereference().value_uint(key_size * 8)
+        if elem_hash == hash and elem_key == key:
+            return elem
+        node = node.eval_field('next')
+        if node.value_uint(ptr_size) == 0:
+            break
+
+    # Return NULL equivalent
+    return KValue(GDBType.lookup('htab_elem').pointer(), 0)
+
+def select_bucket(htab: KValue, hash: KValue) -> KValue:
+    '''&htab->buckets[hash & (htab->n_buckets - 1)]
+    '''
+    buckets = htab.eval_field('buckets')
+    n_buckets = htab.eval_field('n_buckets').dereference().value_uint(ptr_size)
+    bucket_index = hash.value_uint(ptr_size) & (n_buckets - 1)
+    bucket_size = GDBType.lookup('bucket').target_size()
+    bucket_addr = buckets.value_uint(ptr_size) + (bucket_index * bucket_size)
+    bucket = KValue(GDBType.lookup('bucket'), bucket_addr)
+    return bucket
+
+def htab_elem_update(map: KValue, key: KValue, value: KValue) -> KValue:
+    print(f'htab_elem_update | {map=}, {key=}, {value=}')
+    htab = container_of(map, 'bpf_htab', 'map')
+    key_size = map.eval_field('key_size').dereference()
+    hash = htab_map_hash(key, key_size, htab.eval_field('hashrnd').dereference())
+
+    b = select_bucket(htab, hash)
+    head = b.eval_field('head')
+
+    elem_old = htab_elem_lookup_raw(head, hash, key, key_size)
+    print(f'htab_elem_update | {elem_old=}')

@@ -26,8 +26,10 @@ define BPFHTabBucket as Box<bucket> [
 ]
 define BPFHTabElem as Box<htab_elem> [
     Text hash
+    Text<u32:x> key: @key
     Text value: @value
 ] where {
+    key = ${htab_elem_key(@map, @this)}
     value = ${htab_elem_value(@map, @this)}
 }
 define BPFHashTable as Box<bpf_htab> [

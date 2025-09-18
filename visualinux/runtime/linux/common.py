@@ -4,6 +4,26 @@ from visualinux.runtime.kvalue import *
 
 ### basic
 
+def offsetof(type_name: str, field_name: str) -> int:
+    '''&((t *)0)->f
+    '''
+    gtype = GDBType.lookup(type_name)
+    if gtype.is_scalar():
+        raise fuck_exc(AssertionError, f'offsetof() applied on scalar type: {type_name}')
+    gtype, offset = gtype.get_field_info(field_name)
+    kobj = KValue(gtype, offset)
+    return kobj.address
+
+def container_of(ptr: KValue, type_name: str, member_name: str) -> KValue:
+    '''((type *)((void *)ptr - (void *)offsetof(type, member)))
+    '''
+    print(f'--linux container_of({ptr}, {type_name}, {member_name})')
+    if ptr.value == 0:
+        return KValue(GDBType.lookup(type_name), 0)
+    offset = offsetof(type_name, member_name)
+    container_addr = ptr.address - offset
+    return KValue(GDBType.lookup(type_name), container_addr)
+
 NR_OPEN_DEFAULT = 64
 
 # cast_to_array(id, type, length) ((struct type (*)[length])(id))
