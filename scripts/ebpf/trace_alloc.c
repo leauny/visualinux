@@ -52,8 +52,8 @@ static __always_inline bool addr_tracked(__u64 addr) {
 /* Initialize tracked addresses - called from userspace or first probe */
 static __always_inline void init_tracked_addrs_if_needed(void) {
     // ALL VARIABLE DECLARATIONS MUST BE AT THE TOP
-    __u8 value = 7;
-    __u8 value_x = 8;
+    __u8 value = 1;
+    __u8 value_x = 15;
     __u8 *read_val = NULL;
     int ret;
 
@@ -68,17 +68,17 @@ static __always_inline void init_tracked_addrs_if_needed(void) {
         // Successfully inserted, so we need to initialize the rest
         bpf_printk("BPF first time init - continuing");
         
-        bpf_printk("BPF updating addr #0 x: %llx", initial_addrs[0]);
-        bpf_map_update_elem(&tracked_addrs, &initial_addrs[0], &value_x, BPF_ANY);
-        bpf_printk("BPF updating addr #1: %llx", initial_addrs[1]);
+        // bpf_printk("BPF updating addr #0 x: %llx", initial_addrs[0]);
+        // bpf_map_update_elem(&tracked_addrs, &initial_addrs[0], &value_x, BPF_ANY);
+        bpf_printk("BPF updating addr #1: %llx", initial_addrs[1]); value ++;
         bpf_map_update_elem(&tracked_addrs, &initial_addrs[1], &value, BPF_ANY);
-        bpf_printk("BPF updating addr #2: %llx", initial_addrs[2]);
+        bpf_printk("BPF updating addr #2: %llx", initial_addrs[2]); value ++;
         bpf_map_update_elem(&tracked_addrs, &initial_addrs[2], &value, BPF_ANY);
-        bpf_printk("BPF updating addr #3: %llx", initial_addrs[3]);
+        bpf_printk("BPF updating addr #3: %llx", initial_addrs[3]); value ++;
         bpf_map_update_elem(&tracked_addrs, &initial_addrs[3], &value, BPF_ANY);
-        bpf_printk("BPF updating addr #4: %llx", initial_addrs[4]);
+        bpf_printk("BPF updating addr #4: %llx", initial_addrs[4]); value ++;
         bpf_map_update_elem(&tracked_addrs, &initial_addrs[4], &value, BPF_ANY);
-        
+
         bpf_map_delete_elem(&tracked_addrs, &initial_addrs[2]);
 
         // Verify readback

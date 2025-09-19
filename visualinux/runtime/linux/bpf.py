@@ -9,7 +9,45 @@ def round_up(x: int, y: int) -> int:
     '''
     return ((x - 1) | (y - 1)) + 1
 
-def get_elems_of_bpf_htab(htab: KValue) -> PyListOfKValues:
+def select_bucket(htab: KValue, hash: KValue) -> KValue:
+    '''&htab->buckets[hash & (htab->n_buckets - 1)]
+    '''
+    buckets = htab.eval_field('buckets')
+    n_buckets = htab.eval_field('n_buckets').dereference().value_uint(ptr_size)
+    bucket_size = GDBType.lookup('bucket').target_size()
+    bucket_index = hash.value_uint(ptr_size) & (n_buckets - 1)
+    bucket_addr = buckets.value_uint(ptr_size) + (bucket_index * bucket_size)
+    bucket = KValue(GDBType.lookup('bucket'), bucket_addr)
+    return bucket
+
+def htab_elems(htab: KValue) -> PyListOfKValues:
+    '''All active elems.
+    '''
+    buckets = htab.eval_field('buckets')
+    n_buckets = htab.eval_field('n_buckets').dereference().value_uint(ptr_size)
+    bucket_size = GDBType.lookup('bucket').target_size()
+
+    elems: list[KValue] = []
+    for i in range(n_buckets):
+        bucket_addr = buckets.value_uint(ptr_size) + (i * bucket_size)
+        bucket = KValue(GDBType.lookup('bucket'), bucket_addr)
+        node = bucket.eval_field('head').eval_field('first')
+        print(f'  --bucket | {i=} {node=}')
+        while not (node.value_uint(ptr_size) == 0 or node.value_uint(ptr_size) & 1):
+            print(f'  --loop | {node=}')
+            elem = container_of(node, 'htab_elem', 'hash_node')
+            elems.append(elem)
+            print(f'  --bucket-elem | {elem=}')
+            node = node.eval_field('next')
+
+    map = htab.eval_field('map')
+    key_size = map.eval_field('key_size').dereference().value_uint(ptr_size)
+    elems.sort(key=lambda elem: htab_elem_key(map, elem).dereference().value_uint(key_size * 8))
+    return PyListOfKValues(elems)
+
+def htab_elems_all(htab: KValue) -> PyListOfKValues:
+    '''All elems including the recycled ones.
+    '''
     map = htab.eval_field('map')
     max_entries = map.eval_field('max_entries').dereference().value_uint(ptr_size)
     elems_head = htab.eval_field('elems')
@@ -68,25 +106,21 @@ def htab_elem_lookup_raw(head: KValue, v_hash: KValue, v_key: KValue, v_key_size
     # Return NULL equivalent
     return KValue(GDBType.lookup('htab_elem').pointer(), 0)
 
-def select_bucket(htab: KValue, hash: KValue) -> KValue:
-    '''&htab->buckets[hash & (htab->n_buckets - 1)]
-    '''
-    buckets = htab.eval_field('buckets')
-    n_buckets = htab.eval_field('n_buckets').dereference().value_uint(ptr_size)
-    bucket_index = hash.value_uint(ptr_size) & (n_buckets - 1)
-    bucket_size = GDBType.lookup('bucket').target_size()
-    bucket_addr = buckets.value_uint(ptr_size) + (bucket_index * bucket_size)
-    bucket = KValue(GDBType.lookup('bucket'), bucket_addr)
-    return bucket
-
-def htab_elem_update(map: KValue, key: KValue, value: KValue) -> KValue:
+def htab_elem_update(map: KValue, key: KValue, value: KValue) -> None:
     print(f'htab_elem_update | {map=}, {key=}, {value=}')
     htab = container_of(map, 'bpf_htab', 'map')
     key_size = map.eval_field('key_size').dereference()
     hash = htab_map_hash(key, key_size, htab.eval_field('hashrnd').dereference())
 
-    b = select_bucket(htab, hash)
-    head = b.eval_field('head')
+    bucket = select_bucket(htab, hash)
+    head = bucket.eval_field('head')
+    print(f'htab_elem_update | {bucket=}, {head=}')
 
     elem_old = htab_elem_lookup_raw(head, hash, key, key_size)
     print(f'htab_elem_update | {elem_old=}')
+    elem_value = htab_elem_value(map, elem_old)
+    print(f'elem_value | {elem_value=}')
+    print(f'elem_value | {elem_value.dereference()=}')
+    print(f'elem_value | eval: *{elem_value} = {value}')
+    gdb.parse_and_eval(f'*{elem_value} = {value}') # type: ignore
+    print(f'elem_value after | {elem_value.dereference()=}')

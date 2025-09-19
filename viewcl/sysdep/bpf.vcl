@@ -39,7 +39,7 @@ define BPFHashTable as Box<bpf_htab> [
     Text hashrnd
 ] where {
     map = BPFMap(@this.map)
-    elems = Array("elems": ${get_elems_of_bpf_htab(@this)}).forEach |item| {
+    elems = Array("elems": ${htab_elems(@this)}).forEach |item| {
         yield [ Link "elem #{@index}" -> @elem ] where {
             elem = BPFHTabElem(@item)
         }
