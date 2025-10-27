@@ -28,7 +28,7 @@ class HTabUpdateTest(gdb.Command):
     def invoke(self, arg, from_tty):
         argv = gdb.string_to_argv(arg)
         if len(argv) != 3:
-            print("Usage: htab_update_test <key> <length> <initval>")
+            print("Usage: htab_update_test <map> <key> <value>")
             return
         map   = KValue(GDBType.lookup('bpf_map'), int(gdb.parse_and_eval(argv[0])))
         key   = KValue.gdb_eval(argv[1])

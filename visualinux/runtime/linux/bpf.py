@@ -1,7 +1,9 @@
 from visualinux import *
 from visualinux.runtime.kvalue import *
-from visualinux.runtime.linux.common import container_of
+from visualinux.runtime.linux.common import container_of, per_cpu_ptr
 from visualinux.runtime.linux.jhash import jhash
+
+import gdb
 
 def round_up(x: int, y: int) -> int:
     '''#define __round_mask(x, y) ((__typeof__(x))((y)-1))
@@ -32,9 +34,8 @@ def htab_elems(htab: KValue) -> PyListOfKValues:
         bucket_addr = buckets.value_uint(ptr_size) + (i * bucket_size)
         bucket = KValue(GDBType.lookup('bucket'), bucket_addr)
         node = bucket.eval_field('head').eval_field('first')
-        print(f'  --bucket | {i=} {node=}')
         while not (node.value_uint(ptr_size) == 0 or node.value_uint(ptr_size) & 1):
-            print(f'  --loop | {node=}')
+            print(f'  --bucket | {i=} {node=}')
             elem = container_of(node, 'htab_elem', 'hash_node')
             elems.append(elem)
             print(f'  --bucket-elem | {elem=}')
@@ -90,20 +91,18 @@ def htab_elem_lookup_raw(head: KValue, v_hash: KValue, v_key: KValue, v_key_size
     hash = v_hash.value_uint(ptr_size)
     key_size = v_key_size.value_uint(ptr_size)
     key = v_key.value_uint(key_size * 8)
-    print(f'htab_elem_lookup_raw | {hash=}, {key=}, {key_size=}')
+    print(f'htab_elem_lookup_raw | {hash=}, {key=:#x}, {key_size=}')
 
     node = head.eval_field('first')
-    while node.value_uint(ptr_size) != 0:
+    while not (node.value_uint(ptr_size) == 0 or node.value_uint(ptr_size) & 1):
         elem = container_of(node, 'htab_elem', 'hash_node')
         elem_hash = elem.eval_field('hash').dereference().value_uint(ptr_size)
         elem_key = __htab_elem_key(elem, key_size).dereference().value_uint(key_size * 8)
         if elem_hash == hash and elem_key == key:
             return elem
         node = node.eval_field('next')
-        if node.value_uint(ptr_size) == 0:
-            break
 
-    # Return NULL equivalent
+    # return NULL equivalent
     return KValue(GDBType.lookup('htab_elem').pointer(), 0)
 
 def htab_elem_update(map: KValue, key: KValue, value: KValue) -> None:
@@ -116,11 +115,100 @@ def htab_elem_update(map: KValue, key: KValue, value: KValue) -> None:
     head = bucket.eval_field('head')
     print(f'htab_elem_update | {bucket=}, {head=}')
 
-    elem_old = htab_elem_lookup_raw(head, hash, key, key_size)
-    print(f'htab_elem_update | {elem_old=}')
-    elem_value = htab_elem_value(map, elem_old)
+    elem = htab_elem_lookup_raw(head, hash, key, key_size)
+    if elem.value == 0:
+        print(f'htab_elem_update | {elem=} NULL, inserting')
+        elem = htab_elem_create_prealloc_nolock(htab, map, hash, key, key_size)
+        if elem.value == 0:
+            print(f'htab_elem_update | {elem=} NULL, failed to create')
+            return
+        __hlist_nulls_add_head_nolock(elem.eval_field('hash_node'), head)
+        print(f'htab_elem_update | {elem=} created and added to bucket')
+        # must reset the cache since creation will modify the pointers,
+        # otherwise successive creation will fail
+        gdb_adaptor.reset()
+
+    print(f'htab_elem_update | {elem=}')
+    elem_value = htab_elem_value(map, elem)
     print(f'elem_value | {elem_value=}')
     print(f'elem_value | {elem_value.dereference()=}')
     print(f'elem_value | eval: *{elem_value} = {value}')
     gdb.parse_and_eval(f'*{elem_value} = {value}') # type: ignore
     print(f'elem_value after | {elem_value.dereference()=}')
+
+def htab_elem_create_prealloc_nolock(htab: KValue, map: KValue, v_hash: KValue, v_key: KValue, v_key_size: KValue) -> KValue:
+    hash = v_hash.value_uint(ptr_size)
+    key_size = v_key_size.value_uint(ptr_size)
+    key = v_key.value_uint(key_size * 8)
+    print(f'htab_elem_create | {map=}, {key=:#x}, {key_size=}, {hash=}')
+    node = __pcpu_freelist_pop_nolock(htab.eval_field('freelist'))
+    if node.value == 0:
+        return KValue(GDBType.lookup('htab_elem').pointer(), 0)
+    elem = container_of(node, 'htab_elem', 'fnode')
+    print(f'htab_elem_create | {node=}, {elem=}')
+    print(f'htab_elem_eval | {elem}->hash = {hash}')
+    gdb.parse_and_eval(f'{elem}->hash = {hash}') # type: ignore
+    print(f'htab_elem_eval | *(uint{key_size * 8}_t*)({elem}->key) = {key:#x}')
+    gdb.parse_and_eval(f'*(uint{key_size * 8}_t*)({elem}->key) = {key}') # type: ignore
+    return elem
+
+def __pcpu_freelist_pop_nolock(freelist: KValue) -> KValue:
+    current_cpu = linux.cpus.get_current_cpu()
+    for cpu in __for_each_possible_cpu(start_cpu=current_cpu):
+        head = per_cpu_ptr(freelist.eval_field('freelist'), cpu)
+        node = head.eval_field('first')
+        if node.value_uint(ptr_size) != 0:
+            next_node = node.eval_field('next')
+            gdb.parse_and_eval(f'{head}->first = {next_node}') # type: ignore
+            return node
+
+    # per cpu lists are all empty, try extralist
+    extralist = freelist.eval_field('extralist')
+    node = extralist.eval_field('first')
+    if node.value_uint(ptr_size) != 0:
+        next_node = node.eval_field('next')
+        print(f'  -- Found extralist node {node=}, next={next_node=}')
+        gdb.parse_and_eval(f'{extralist}->first = {next_node}') # type: ignore
+        return node
+
+    # return NULL equivalent
+    return KValue(GDBType.lookup('pcpu_freelist_node').pointer(), 0)
+
+def __hlist_nulls_add_head_nolock(new_node: KValue, head: KValue) -> None:
+    print(f'hlist_nulls_add_head_nolock | {new_node=}, {head=}')
+    # first = h->first;
+    first = head.eval_field('first')
+    print(f'  -- current first: {first=}')
+    # n->next = first;
+    print(f'  -- Setting {new_node}->next = {first}')
+    gdb.parse_and_eval(f'{new_node}->next = {first}') # type: ignore
+    # WRITE_ONCE(n->pprev, &h->first);
+    head_first_addr = head.address  # head结构体的地址
+    print(f'  -- Setting {new_node}->pprev = &{head}->first (addr: {head_first_addr:#x})')
+    gdb.parse_and_eval(f'{new_node}->pprev = (struct hlist_nulls_node **)({head_first_addr:#x})') # type: ignore
+    # rcu_assign_pointer(hlist_nulls_first_rcu(h), n); => h->first = n;
+    print(f'  -- Setting {head}->first = {new_node}')
+    gdb.parse_and_eval(f'{head}->first = {new_node}') # type: ignore
+    # if (!is_a_nulls(first)) WRITE_ONCE(first->pprev, &n->next);
+    first_addr = first.value_uint(ptr_size)
+    if first_addr != 0 and (first_addr & 1) == 0:  # !is_a_nulls(first)
+        new_node_next_addr = new_node.address + 0  # &n->next的地址就是n的地址（next是第一个字段）
+        print(f'  -- Setting old first {first}->pprev = &{new_node}->next (addr: {new_node_next_addr:#x})')
+        gdb.parse_and_eval(f'{first}->pprev = (struct hlist_nulls_node **)({new_node_next_addr:#x})') # type: ignore
+    else:
+        print(f'  -- first is nulls or NULL, skipping pprev update')
+
+import linux.cpus
+
+def __for_each_possible_cpu(start_cpu: int) -> Generator[int, None, None]:
+    possible_cpus = list(linux.cpus.each_possible_cpu())
+    if not possible_cpus:
+        return
+    # find the index of start_cpu in possible_cpus
+    try:
+        start_idx = possible_cpus.index(start_cpu)
+    except ValueError:
+        start_idx = 0
+    # iterate over possible_cpus starting from start_idx
+    for i in range(len(possible_cpus)):
+        yield possible_cpus[(start_idx + i) % len(possible_cpus)]
