@@ -3,6 +3,7 @@ from visualinux.dsl.parser.parser import Parser
 from visualinux.dsl.model.symtable import *
 from visualinux.runtime.gdb.adaptor import gdb_adaptor
 from visualinux.snapshot import *
+from visualinux.vdiff_monitor import VDiffMonitor
 
 import json
 import shutil
@@ -18,9 +19,9 @@ class Core:
     '''Note that there should be only one Engine instance existing.
     '''
     def __init__(self) -> None:
-
         self.parser = Parser(VIEWCL_GRAMMAR_PATH)
         self.sn_manager = SnapshotManager()
+        self.vdiff_monitor = VDiffMonitor()
 
     def parse_file(self, src_file: Path):
         return self.parse(src_file.read_text())
@@ -83,7 +84,59 @@ class Core:
                 self.export_for_debug(view.to_json(), export_dir / f'{view.name}.json')
             # self.reload_and_reexport_debug()
 
+        # update tracked addresses for vdiff monitor
+        if self.vdiff_monitor.enabled:
+            try:
+                if self.vdiff_monitor.bpf_map.value == 0:
+                    print(f'vl_sync() vdiff monitor init')
+                    self.__init_vdiff_monitor()
+                    print(f'vl_sync() vdiff monitor init OK')
+                self.__update_vdiff_monitor(snapshot)
+                # debug
+                gdb_adaptor.reset()
+                KValue.reset()
+                SymTable.reset()
+                ss = self.__fetch_bpf_map_snapshot()
+                ss.key = sn_key + '_vdiff_monitor_debug'
+                self.send({
+                    'command': 'NEW',
+                    'snKey': ss.key,
+                    'snapshot': ss.to_json(),
+                })
+
+            except Exception as e:
+                print(f'vl_sync() vdiff monitor update failed: {e!s}')
+                self.vdiff_monitor.enabled = False
+
         return snapshot
+
+    def __init_vdiff_monitor(self):
+        snapshot = self.__fetch_bpf_map_snapshot()
+        for box in snapshot.views[0].pool.boxes.values():
+            if box.type == 'bpf_map':
+                print('bpf_map box found: ', box.addr)
+                member_json = box.views['default'].members['name'].to_json()
+                print('    member_json:', member_json)
+                if member_json['class'] == 'text' and member_json['value'] == 'vdiff_tracked':
+                    print('bpf_map vdiff_tracked found: ', box.addr)
+                    self.vdiff_monitor.bpf_map.value = box.addr
+    
+    def __fetch_bpf_map_snapshot(self):
+        bpf_vcl = VIEWCL_SRC_DIR / 'sysdep' / 'bpf.vcl'
+        code = bpf_vcl.read_text()
+        model = self.parse(code)
+        snapshot = model.sync()
+        return snapshot
+
+    def __update_vdiff_monitor(self, snapshot: Snapshot):
+        tracked_addrs: list[int] = []
+        for view in snapshot.views:
+            for box in view.pool.boxes.values():
+                tracked_addrs.append(box.addr)
+            for box in view.pool.containers.values():
+                tracked_addrs.append(box.addr)
+        self.vdiff_monitor.update(tracked_addrs)
+        print('tracked_addrs:', [f'{addr:#x}' for addr in self.vdiff_monitor.tracked_addrs])
 
     def send_diff(self, sn_key_src: str, sn_key_dst: str):
         self.send({

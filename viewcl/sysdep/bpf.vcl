@@ -26,7 +26,7 @@ define BPFHTabBucket as Box<bucket> [
 ]
 define BPFHTabElem as Box<htab_elem> [
     Text hash
-    Text<u32:x> key: @key
+    Text<u64:x> key: @key
     Text value: @value
 ] where {
     key = ${htab_elem_key(@map, @this)}
@@ -133,6 +133,6 @@ define IDR_BPF_Maps as Box<idr> {
 
 link_idr = IDR_BPF_Links(${&link_idr})
 map_idr = IDR_BPF_Maps(${&map_idr})
-diag textbook_22_bpf {
+diag bpf_for_vdiff {
     plot @link_idr
 }

@@ -113,7 +113,7 @@ class KValue:
     def dereference(self) -> 'KValue':
         if self.final_text:
             return self
-        if self in self.__dereference_cache:
+        if gdb_adaptor.cache_enabled and self in self.__dereference_cache:
             return self.__dereference_cache[self]
         try:
             assert self.gtype.is_pointer()
@@ -128,7 +128,8 @@ class KValue:
                 text = fuck.format_string(raw=True, symbols=False, address=False, format='s')[1 : -1]
                 evaluation_counter.bytes += len(text)
                 return KValue.FinalStr(text)
-            signed = self.gtype.target().is_scalar() and not self.gtype.target().is_pointer()
+            signed = self.gtype.target().is_scalar() and not self.gtype.target().is_pointer() and not self.gtype.target().name.startswith('u')
+            if vl_debug_on(): printd(f'signed? {self.gtype.target().is_scalar() = }, {self.gtype.target().is_pointer() = }, {self.gtype.target().name.startswith("u") = }')
             if vl_debug_on(): printd(f'dereference {self!s} read_scalar size={self.gtype.target().sizeof()} {signed=}')
             addr = gdb_adaptor.read_scalar(self.address, self.gtype.target().sizeof(), signed=signed)
             kobj = KValue(self.gtype.target(), addr)

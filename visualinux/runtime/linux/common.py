@@ -17,7 +17,6 @@ def offsetof(type_name: str, field_name: str) -> int:
 def container_of(ptr: KValue, type_name: str, member_name: str) -> KValue:
     '''((type *)((void *)ptr - (void *)offsetof(type, member)))
     '''
-    print(f'--linux container_of({ptr}, {type_name}, {member_name})')
     if ptr.value == 0:
         return KValue(GDBType.lookup(type_name), 0)
     offset = offsetof(type_name, member_name)

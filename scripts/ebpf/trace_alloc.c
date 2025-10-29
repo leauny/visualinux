@@ -15,15 +15,15 @@ struct {
     __uint(max_entries, MAX_TRACKED);
     __type(key, __u64);
     __type(value, __u8);
-} tracked_addrs SEC(".maps");
+} vdiff_tracked SEC(".maps");
 
 static void __track_alloc(__u64 addr, void *ctx) {
-    __u8 *tracked = bpf_map_lookup_elem(&tracked_addrs, &addr);
+    __u8 *tracked = bpf_map_lookup_elem(&vdiff_tracked, &addr);
     __u8 value = 1;
     if (tracked != NULL) {
         bpf_printk("BPF track_alloc tracked addr=0x%llx tv=%d", addr, *tracked);
-        if (bpf_map_update_elem(&tracked_addrs, &addr, &value, BPF_ANY) != 0) {
-            bkf_printk("BPF track_alloc tracked update failed");
+        if (bpf_map_update_elem(&vdiff_tracked, &addr, &value, BPF_ANY) != 0) {
+            bpf_printk("BPF track_alloc tracked update failed");
             return;
         }
     }

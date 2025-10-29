@@ -8,12 +8,23 @@ class GDBAdaptor:
 
     def __init__(self) -> None:
         self.cache: dict[str, gdb.Value] = {}
+        self.cache_enabled = True
 
     def reset(self) -> None:
         self.cache.clear()
 
+    def disable_cache(self) -> None:
+        '''cache should be disabled when we're hacking and modifying the kernel memory (mainly for vdiff tracing)
+        '''
+        self.cache_enabled = False
+
+    def enable_cache(self) -> None:
+        '''enable cache after hacking is done
+        '''
+        self.cache_enabled = True
+
     def eval(self, expr: str) -> GDBValue:
-        if expr not in self.cache:
+        if not self.cache_enabled or expr not in self.cache:
             if vl_debug_on(): printd(f'gdb.parse_and_eval({expr})')
             gdb_val = gdb.parse_and_eval(expr)
             if not gdb_val.type.is_scalar and not gdb_val.type.code == gdb.TYPE_CODE_PTR:
@@ -35,14 +46,18 @@ class GDBAdaptor:
 
     def read_scalar(self, addr: int, size: int, signed: bool = True) -> int:
         evaluation_counter.bytes += size
-        if vl_debug_on(): printd(f'gdump.fuckread {addr=:#x} uint{size * 8}_t')
-        # gval = gdb.parse_and_eval(f'*((uint{size * 8}_t *){addr:#x})')
-        # return int(gval)
-        return int(gdb.Value(addr).cast(gdb.lookup_type(f'uint{size * 8}_t').pointer()).dereference())
+        sign = '' if signed else 'u'
+        if not self.cache_enabled:
+            gval = gdb.parse_and_eval(f'*(({sign}int{size * 8}_t *){addr:#x})')
+            return int(gval)
+        if vl_debug_on(): printd(f'gdump.read_scalar {addr=:#x} {sign}int{size * 8}_t')
+        gval = gdb.Value(addr).cast(gdb.lookup_type(f'{sign}int{size * 8}_t').pointer()).dereference()
+        return int(gval)
 
     def read_string(self, addr: int, size: int) -> str:
         evaluation_counter.bytes += size
         if vl_debug_on(): printd(f'read_string {addr = :#x}, {size = }')
-        return gdb.Value(addr).cast(gdb.lookup_type(f'char').pointer()).format_string(raw=True, symbols=False, address=False, format='s')[1 : -1]
+        gval = gdb.Value(addr).cast(gdb.lookup_type(f'char').pointer())
+        return gval.format_string(raw=True, symbols=False, address=False, format='s')[1 : -1]
 
 gdb_adaptor = GDBAdaptor()

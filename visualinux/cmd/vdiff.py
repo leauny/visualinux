@@ -40,4 +40,3 @@ class VDiffHandler:
             core.send_diff(sn_key_1, sn_key_2)
         else:
             core.send_diff(sn_key_2, sn_key_1)
-

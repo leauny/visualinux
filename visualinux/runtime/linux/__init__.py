@@ -8,4 +8,5 @@ from visualinux.runtime.linux.inode import *
 from visualinux.runtime.linux.sysv import *
 from visualinux.runtime.linux.mm import *
 from visualinux.runtime.linux.bpf import *
+from visualinux.runtime.linux.bpf_hack import *
 from visualinux.runtime.linux.jhash import *
