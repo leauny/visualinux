@@ -1,6 +1,6 @@
 import { createContext, useReducer } from "react";
 import Snapshots from "./Snapshots";
-import Panels, { DisplayOption, SplitDirection } from "./Panels";
+import Panels, { DisplayOption, SecondaryPanel, SplitDirection } from "./Panels";
 import { Snapshot, ViewAttrs } from "@app/visual/types";
 import { addLogTo, LogEntry, LogType } from "@app/utils";
 
@@ -48,7 +48,7 @@ export type GlobalStateAction =
 | { command: 'SWITCH', pKey: number, viewname: string }
 | { command: 'UPDATE', pKey: number, attrs: ViewAttrs }
 | { command: 'RESET',  pKey: number }
-| { command: 'FOCUS',  objectKey: string }
+| { command: 'SELECT', pKey: number, objectKey: string | undefined }
 | { command: 'REMOVE', pKey: number }
 
 // export const GlobalStatusContext = createContext(new GlobalStatus());
@@ -84,43 +84,43 @@ function globalStateReducer(state: GlobalState, action: GlobalStateAction) {
 function globalStateDispatcher(state: GlobalState, action: GlobalStateAction) {
     switch (action.command) {
         case 'NEW':
-            state.log('info', `NEW ${action.snKey} ${action.snapshot.pc} ${action.snapshot.timestamp}`);
+            console.log(`NEW ${action.snKey} ${action.snapshot.pc} ${action.snapshot.timestamp}`);
             state.snapshots.new(action.snKey, action.snapshot);
             return state.refresh();
         case 'DIFF':
-            state.log('info', `DIFF ${action.snKeySrc} ${action.snKeyDst}`);
+            console.log(`DIFF ${action.snKeySrc} ${action.snKeyDst}`);
             state.snapshots.diff(action.snKeySrc, action.snKeyDst);
             return state.refresh();
         case 'SPLIT':
-            state.log('info', `SPLIT ${action.pKey} ${action.direction}`);
+            console.log(`SPLIT ${action.pKey} ${action.direction}`);
             state.panels.split(action.pKey, action.direction);
             return state.refresh();
         case 'PICK':
-            state.log('info', `PICK ${action.pKey} ${action.objectKey}`);
+            console.log(`PICK ${action.pKey} ${action.objectKey}`);
             state.panels.pick(action.pKey, action.objectKey);
             return state.refresh();
         case 'USE':
-            state.log('info', `USE ${action.pKey} ${action.snKey}`);
+            console.log(`USE ${action.pKey} ${action.snKey}`);
             state.panels.use(action.pKey, action.snKey);
             return state.refresh();
         case 'SWITCH':
-            state.log('info', `SWITCH ${action.pKey} ${action.viewname}`);
+            console.log(`SWITCH ${action.pKey} ${action.viewname}`);
             state.panels.switch(action.pKey, action.viewname);
             return state.refresh();
         case 'UPDATE':
-            state.log('info', `UPDATE ${action.pKey} ${JSON.stringify(action.attrs)}`);
+            console.log(`UPDATE ${action.pKey} ${JSON.stringify(action.attrs)}`);
             state.panels.update(action.pKey, action.attrs);
             return state.refresh();
         case 'RESET':
-            state.log('info', `RESET ${action.pKey}`);
+            console.log(`RESET ${action.pKey}`);
             state.panels.reset(action.pKey);
             return state.refresh();
-        case 'FOCUS':
-            state.log('info', `FOCUS ${action.objectKey}`);
-            state.panels.focus(action.objectKey);
-            return state.refresh();
+        case 'SELECT':
+            console.log(`SELECT ${action.pKey} ${action.objectKey}`);
+            state.panels.select(action.pKey, action.objectKey);
+            return state;
         case 'REMOVE':
-            state.log('info', `REMOVE ${action.pKey}`);
+            console.log(`REMOVE ${action.pKey}`);
             state.panels.remove(action.pKey);
             return state.refresh();
         default:

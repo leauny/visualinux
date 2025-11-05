@@ -1,233 +1,161 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { GlobalStateContext } from "@app/context/Context";
-import { SplitDirection } from "@app/context/Panels";
-import Diagram from "@app/visual/Diagram";
-import { ButtonDef, ButtonsWrapper, ButtonWrapper } from "@app/panes/buttons";
-import * as icons from "@app/panes/libs/Icons";
-import { Snapshot } from "@app/visual/types";
+import { eventBus } from "@app/context/EventBus";
+import { Renderer } from "@app/visual/render";
+import {
+    ReactFlowProvider,
+    ReactFlow,
+    Background, Controls, MiniMap, Panel,
+    type Node, type Edge,
+    useNodesState, useEdgesState,
+    useReactFlow,
+} from "@xyflow/react";
 
-type useStateSelected = typeof useState<string | undefined>;
+import "@xyflow/react/dist/style.css";
+import "../index.css";
+
+import { nodeTypes } from "@app/visual/nodes";
+import { edgeTypes } from "@app/visual/edges";
+import DiagramToolbar from "@app/panes/DiagramToolbar";
+import * as icons from "@app/panes/libs/Icons";
 
 export default function PrimaryPane({ pKey }: { pKey: number }) {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    // useMemo(() => model.initDiagramRef(wKey, diagramRef), []);
-    // this is used to update buttons ifEnabled() without refreshing the diagram
-    // let [selected, setSelected] = useState<string | undefined>(undefined);
-    const { state } = useContext(GlobalStateContext);
-    const displayed = state.panels.getDisplayed(pKey);
-    let [selected, setSelected]: ReturnType<useStateSelected> | [null, null] = [null, null];
-    const onChildMount = (dataFromChild: ReturnType<useStateSelected>) => {
-        selected = dataFromChild[0];
-        setSelected = dataFromChild[1];
-    };
-    let updateSelected = (s: string | undefined) => {
-        if (setSelected) setSelected(s);
-        // diagramRef.current?.forceUpdate();
-    };
-    //
+    const [selected, setSelected] = useState<string | undefined>(undefined);
     return (
-        <div className="h-full flex flex-col border-2 border-[#5755d9]">
-            <PrimaryWindowHeader pKey={pKey} onMount={onChildMount}/>
-            <div className="flex h-full bg-white">
-                <Diagram displayed={displayed} />
+        <ReactFlowProvider>
+            <div className="h-full flex flex-col border-2 border-[#5755d9]">
+                <DiagramToolbar pKey={pKey} selected={selected} />
+                <div className="flex h-full bg-white">
+                    <ReactFlowDiagram pKey={pKey} setSelected={setSelected} />
+                </div>
             </div>
-        </div>
+        </ReactFlowProvider>
     );
 }
 
-export function PrimaryWindowHeader({ pKey, onMount }: {
-    pKey: number,
-    onMount: (dataFromChild: ReturnType<useStateSelected>) => void
-}) {
-    const { state, stateDispatch } = useContext(GlobalStateContext);
-    let viewname = useMemo(() => state.panels.getViewname(pKey), [state, pKey]);
-    //
-    let [selected, setSelected] = useState<string | undefined>(undefined);
-    useEffect(() => {
-        onMount([selected, setSelected]);
-    }, [onMount, selected]);
-    //
-    let clickSplit = (direction: SplitDirection) => {
-        console.log('click split', pKey, SplitDirection[direction]);
-        stateDispatch({ command: 'SPLIT', pKey, direction });
-    };
-    let buttons: ButtonDef[] = useMemo(() => [{
-        icon: <icons.AkarIconsAugmentedReality color="#5755d9"/>,
-        desc: "focus",
-        ifEnabled: state.panels.getObjectSelected(pKey) !== undefined,
-        onClick: () => {
-            let objectKey = state.panels.getObjectSelected(pKey);
-            if (viewname !== undefined && objectKey !== undefined) {
-                stateDispatch({ command: 'FOCUS', objectKey });
-            }
-        }
-    }, {
-        icon: <icons.AkarIconsArrowForwardThick color="#5755d9"/>,
-        desc: "pick",
-        ifEnabled: state.panels.getObjectSelected(pKey) !== undefined,
-        onClick: () => {
-            let objectKey = state.panels.getObjectSelected(pKey);
-            if (viewname !== undefined && objectKey !== undefined) {
-                // use wKey instead of viewname here to maintain protocol consistency,
-                // since it is hard for user (and LLM) to specify viewname in the gdb side.
-                stateDispatch({ command: 'PICK', pKey, objectKey });
-            }
-        }
-    }, {
-        icon: <icons.AkarIconsChevronVertical color="#5755d9"/>,
-        desc: "split (vert)",
-        ifEnabled: true,
-        onClick: () => clickSplit(SplitDirection.horizontal)
-    }, {
-        icon: <icons.AkarIconsChevronHorizontal color="#5755d9"/>,
-        desc: "split (horiz)",
-        ifEnabled: true,
-        onClick: () => clickSplit(SplitDirection.vertical)
-    }, {
-        icon: <icons.AkarIconsDownload color="#5755d9"/>,
-        desc: "download",
-        ifEnabled: viewname !== undefined,
-        onClick: () => {
-            alert('download to-be-reimplemented');
-            // let diagram  = diagramRef.current?.getDiagram();
-            // let filename = viewDisplayed?.slice(viewDisplayed.indexOf('.') + 1);
-            // if (diagram && filename) {
-            //     downloadDiagram(diagram, filename);
-            // }
-        }
-    }, {
-        icon: <icons.AkarIconsTrashCan color="#5755d9"/>,
-        desc: "remove",
-        ifEnabled: state.panels.isRemovable(pKey),
-        onClick: () => {
-            console.log('click remove', pKey);
-            stateDispatch({ command: 'REMOVE', pKey });
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }], [state, selected]);
+function ReactFlowDiagram({ pKey, setSelected }: { pKey: number, setSelected: (selected: string | undefined) => void }) {
+    const { state } = useContext(GlobalStateContext);
 
-    return (
-        <div className="h-auto flex flex-row flex-wrap justify-between border-b-2 border-[#5755d9]">
-            <ButtonsWrapper direction="left">
-                <div className="w-[30px] h-[30px] flex items-center justify-center border-2 border-[#5755d9] rounded cursor-pointer">
-                    #{pKey}
-                </div>
-                <ViewSelector pKey={pKey} />
-                <SnapshotSelector pKey={pKey} />
-            </ButtonsWrapper>
-            <ButtonsWrapper direction="right">
-                {/* <DropdownAbstSelector wKey={wKey} enabled={selected !== undefined}/> */}
-                {...buttons.map((btn, i) => 
-                    <ButtonWrapper buttonDef={btn} key={i}/>
-                )}
-            </ButtonsWrapper>
-        </div>
-    );
-}
+    // use deep comparison to avoid unnecessary re-rendering
+    const rawDisplayed = state.panels.getDisplayed(pKey);
+    const displayed = useMemo(() => rawDisplayed, [
+        rawDisplayed.snKey,
+        rawDisplayed.viewname,
+        JSON.stringify(rawDisplayed.viewAttrs)
+    ]);
 
-function ViewSelector({ pKey }: { pKey: number }) {
-    const { state, stateDispatch } = useContext(GlobalStateContext);
-    const [isOpen, setIsOpen] = useState(false);
-    const displayed = state.panels.getDisplayed(pKey);
-    const viewnameList = useMemo(() => {
-        return state.snapshots.getViewnameList(displayed.snKey);
-    }, [displayed, state]);
-
-    const toggleDropdown = () => setIsOpen(!isOpen);
-    const closeDropdown = () => setIsOpen(false);
-
-    const handleSelect = (viewname: string) => {
-        stateDispatch({ command: 'SWITCH', pKey, viewname });
-        // setDisplayed({ ...displayed, viewname });
-        closeDropdown();
-    };
-
-    return (
-        <div className="relative">
-            <button 
-                className="h-[30px] px-2 flex items-center justify-center border-2 border-[#5755d9] rounded cursor-pointer"
-                onClick={toggleDropdown}
-            >
-                {displayed.viewname ? displayed.viewname.slice(displayed.viewname.lastIndexOf('.') + 1) : 'select a plot...'}
-            </button>
-            
-            {isOpen && (
-                <div className="absolute z-10 mt-0.5 left-0">
-                    <ul className="min-w-48 bg-white border-2 border-[#5755d9] rounded shadow-lg">
-                        {viewnameList.map((viewname, index, array) => (
-                            <li 
-                                className={`px-2 py-0.5 cursor-pointer ${index < array.length - 1 ? 'border-b-2 border-[#5755d9]' : ''}`}
-                                key={index} 
-                                onClick={() => handleSelect(viewname)}
-                            >
-                                <a className="block text-gray-800">{viewname}</a>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-        </div>
-    );
-}
-
-function SnapshotSelector({ pKey }: { pKey: number }) {
-    const { state, stateDispatch } = useContext(GlobalStateContext);
-    const [isOpen, setIsOpen] = useState(false);
-    const displayed = state.panels.getDisplayed(pKey);
-    const snapshotList = state.snapshots.data;
-
-    const toggleDropdown = () => setIsOpen(!isOpen);
-    const closeDropdown = () => setIsOpen(false);
-
-    const handleSelect = (snKey: string) => {
-        stateDispatch({ command: 'USE', pKey, snKey });
-        // setDisplayed({ ...displayed, snKey });
-        closeDropdown();
-    };
-
-    return (
-        <div className="relative">
-            <button 
-                className="h-[30px] px-2 flex items-center justify-center border-2 border-[#5755d9] rounded cursor-pointer"
-                onClick={toggleDropdown}
-            >
-                {displayed.snKey ? displayed.snKey.slice(displayed.snKey.lastIndexOf('.') + 1) : 'select a snapshot...'}
-            </button>
-            
-            {isOpen && (
-                <div className="absolute z-10 mt-0.5 left-0">
-                    <ul className="min-w-48 bg-white border-2 border-[#5755d9] rounded shadow-lg">
-                        {snapshotList.map((snapshot) => {
-                            return (
-                                <li 
-                                    key={snapshot.key} 
-                                    className="px-2 whitespace-pre-wrap overflow-x-hidden text-ellipsis cursor-pointer hover:bg-gray-200"
-                                    onClick={() => handleSelect(snapshot.key)}
-                                >
-                                    <a className="block text-gray-800">{snapshotTitle(snapshot)}</a>
-                                </li>
-                            );
-                        })}
-                    </ul>
-                </div>
-            )}
-        </div>
-    );
-}
-
-function snapshotTitle(snapshot: Snapshot) {
-    if (snapshot.timestamp != 0) {
-        return snapshot.key + '\n' + timestampToDate(snapshot.timestamp);
-    }
-    return snapshot.key + '\n' + '---';
-}
-
-function timestampToDate(timestamp: number) {
-    return new Date(timestamp * 1000).toLocaleString(undefined, {
-        // month: 'numeric',
-        // day: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric',
-        second: 'numeric'
+    const [renderer] = useState<Renderer>(() => {
+        const { view, attrs } = state.getPlot(displayed);
+        return new Renderer(view, attrs);
     });
+    const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+    const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+    const [shouldUpdate, setShouldUpdate] = useState<[string, string, string] | undefined>(undefined);
+    const [showMiniMap, setShowMiniMap] = useState(true);
+    const { fitView, setCenter } = useReactFlow();
+    
+    const refreshNodeSelection = useCallback((nodeId: string | undefined) => {
+        setSelected(nodeId);
+        setNodes((nds) =>
+            nds.map((nd) => {
+                const newSelected = nd.id == nodeId;
+                if (nd.selected != newSelected) {
+                    return { ...nd, selected: newSelected };
+                }
+                return nd;
+            })
+        );
+    }, [setSelected, setNodes]);
+
+    useEffect(() => {
+        const handleFocus = ({ objectKey }: { objectKey: string }) => {
+            const dollarIndex = objectKey.indexOf('$');
+            if (dollarIndex !== -1) {
+                objectKey = objectKey.substring(0, dollarIndex);
+            }
+            const node = nodes.find(n => n.id == objectKey);
+            if (node) {
+                refreshNodeSelection(objectKey);
+                let x = node.position.x + (node.width || 0) / 2;
+                let y = node.position.y + (node.height || 0) / 2;
+                let currentNode = node;
+                while (currentNode.parentId) {
+                    const parentNode = nodes.find(n => n.id == currentNode.parentId);
+                    if (parentNode) {
+                        x += parentNode.position.x;
+                        y += parentNode.position.y;
+                        currentNode = parentNode;
+                    } else {
+                        break;
+                    }
+                }
+                setCenter(x, y, { zoom: 0.75, duration: 300 });
+            }
+        };
+        eventBus.on('FOCUS', handleFocus);
+        return () => eventBus.off('FOCUS', handleFocus);
+    }, [nodes, refreshNodeSelection, setCenter]);
+    
+    // Update nodes and edges when graph changes
+    useEffect(() => {
+        const { view, attrs } = state.getPlot(displayed);
+        renderer.reset(view, attrs);
+        // clear-then-reset to avoid react-flow render error (root cause of which is unknown)
+        setNodes([]);
+        setEdges([]);
+        if (view !== null) {
+            setTimeout(() => {
+                let graph = renderer.create();
+                const notifier = (id: string, rootId: string, type: string) => setShouldUpdate([id, rootId, type]);
+                graph.nodes = graph.nodes.map(node => {
+                    if (node.type == 'box' || node.type == 'container') {
+                        node.data.notifier = notifier;
+                    }
+                    return node;
+                });
+                let { nodes, edges } = renderer.finalize();
+                setNodes(nodes);
+                setEdges(edges);
+                setTimeout(() => {
+                    window.requestAnimationFrame(() => {
+                        fitView();
+                    });
+                }, 100);
+            }, 100);
+        }
+    }, [displayed]);
+    useEffect(() => {
+        if (shouldUpdate) {
+            renderer.refresh(...shouldUpdate);
+            let { nodes, edges } = renderer.finalize();
+            setNodes(nodes);
+            setEdges(edges);
+            setShouldUpdate(undefined);
+        }
+    }, [shouldUpdate]);
+    return (
+        <ReactFlow
+            nodes={nodes} nodeTypes={nodeTypes} onNodesChange={onNodesChange}
+            edges={edges} edgeTypes={edgeTypes} onEdgesChange={onEdgesChange}
+            nodesConnectable={false} deleteKeyCode={null}
+            onNodeClick={(_, node) => refreshNodeSelection(node.id)}
+            onNodeDragStart={(_, node) => refreshNodeSelection(node.id)}
+            onEdgeClick={() => refreshNodeSelection(undefined)}
+            onPaneClick={() => refreshNodeSelection(undefined)}
+            fitView
+        >
+            <Background />
+            {showMiniMap && <MiniMap pannable={true} style={{ width: 160, height: 128 }} />}
+            <Controls />
+            <Panel position="bottom-right" className="flex flex-col gap-2 items-end mb-16">
+                <button 
+                    onClick={() => setShowMiniMap(!showMiniMap)}
+                    className="bg-white hover:bg-gray-100 border border-gray-300 rounded p-0.5 shadow-sm cursor-pointer transition-colors"
+                    title={showMiniMap ? 'Hide MiniMap' : 'Show MiniMap'}
+                >
+                    <icons.AkarIconsMap color={showMiniMap ? '#374151' : '#9ca3af'} width={14} height={14} />
+                </button>
+            </Panel>
+        </ReactFlow>
+    );
 }

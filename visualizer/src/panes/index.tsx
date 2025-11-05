@@ -2,7 +2,7 @@ import { useContext, useState } from "react";
 import SplitPane, { Pane } from "split-pane-react";
 import { GlobalStateContext } from "@app/context/Context";
 import { PrimaryArea, PrimaryPanel, SecondaryPanel, isPrimaryPanel } from "@app/context/Panels";
-import { PrimaryPane } from "@app/visual/Diagram";
+import PrimaryPane from "@app/panes/PrimaryPane";
 import SecondaryPane from "@app/panes/SecondaryPane";
 
 import "@app/panes/style.css";
@@ -10,9 +10,9 @@ import "@app/panes/style.css";
 export default function MainPane() {
     const { state } = useContext(GlobalStateContext);
     return (
-        <div className="w-full h-full">
+        <div className="main-pane w-full h-full">
             <PrimaryPanes node={state.panels.root}/>
-            <SecondaryPanes nodes={[]}/>
+            <SecondaryPanes nodes={state.panels.secondaries}/>
         </div>
     );
 }

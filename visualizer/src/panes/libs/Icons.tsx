@@ -53,3 +53,13 @@ export function AkarIconsDownload(props: SVGProps<SVGSVGElement>) {
         </svg>
     );
 }
+
+export function AkarIconsMap(props: SVGProps<SVGSVGElement>) {
+	return (
+        <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" {...props}>
+            <g fill="none" stroke={props.color} strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}>
+                <path d="M8 18V4l-6 2v14zm0 0l8 2m-8-2l8-4m0 4v-14m0 14l6-2V4l-6 2zm0 0V4"></path>
+            </g>
+        </svg>
+    );
+}

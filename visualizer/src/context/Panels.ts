@@ -64,8 +64,9 @@ export default class Panels {
         let node = this.findAndCheck(pKey);
         node.resetCurrentViewAttrs({});
     }
-    focus(objectKey: string) {
-        this.root.focus(objectKey);
+    select(pKey: number, objectKey: string | undefined) {
+        let node = this.findAndCheck(pKey);
+        node.changeSelectedObject(objectKey);
     }
     remove(pKey: number) {
         let node = this.find(pKey);
@@ -105,10 +106,12 @@ export default class Panels {
         }
         return {};
     }
-    getObjectSelected(pKey: number, isPrimary: boolean = true): string | undefined {
-        // we assume that diagram.maxSelected == 1.
-        // return this.getDiagramRef(key, isPrimary)?.current?.getDiagram()?.selection.first()?.data.key;
-        return undefined;
+    getSelectedObject(pKey: number, isPrimary: boolean = true): string | undefined {
+        if (isPrimary) {
+            return this.findAndCheck(pKey).getSelectedObject();
+        } else {
+            return this.secondaries.find(node => node && node.key == pKey)?.objectKey;
+        }
     }
     isRemovable(pKey: number) {
         let node = this.findAndCheck(pKey);
@@ -211,11 +214,6 @@ export class PrimaryArea {
             child.split(direction);
         }
     }
-    public focus(objectKey: string) {
-        for (let child of this.children) {
-            child.focus(objectKey);
-        }
-    }
     public removeChild(key: number) {
         this.children = this.children.filter(node => node.key != key);
     }
@@ -231,20 +229,6 @@ let PanelNextKey = 0;
 
 abstract class Panel {
     public diagramRef?: null
-    public focus(objectKey: string) {
-        if (!this.diagramRef) {
-            return;
-        }
-        console.warn('Panel.focus() is not implemented.');
-        // let diagram = this.diagramRef?.current?.getDiagram();
-        // if (diagram) {
-        //     let node = diagram.findNodeForKey(objectKey);
-        //     if (node) {
-        //         diagram.selectCollection([node]);
-        //         diagram.centerRect(node.actualBounds);
-        //     }
-        // }
-    }
 }
 
 export class PrimaryPanel extends Panel {
@@ -255,6 +239,7 @@ export class PrimaryPanel extends Panel {
     protected viewAttrs: {
         [viewName: string]: ViewAttrs
     }
+    protected selectedObject?: string;
     constructor(parent: PrimaryArea) {
         super();
         this.key = PanelNextKey ++;
@@ -277,8 +262,10 @@ export class PrimaryPanel extends Panel {
     }
     public getCurrentSnapshot = (): string | undefined => this.snKey;
     public getCurrentViewname = (): string | undefined => this.viewname;
+    public getSelectedObject  = (): string | undefined => this.selectedObject;
     public changeSnapshot = (snKey: string | undefined) => this.snKey = snKey;
     public changeViewname = (viewname: string | undefined) => this.viewname = viewname;
+    public changeSelectedObject = (objectKey: string | undefined) => this.selectedObject = objectKey;
     public getCurrentViewAttrs(): ViewAttrs {
         if (this.viewname === undefined) {
             return {};
@@ -302,12 +289,6 @@ export class PrimaryPanel extends Panel {
     }
     public split(direction: SplitDirection) {
         this.parent.split(this.key, direction);
-    }
-    public focus(objectKey: string) {
-        if (!this.viewname) {
-            return;
-        }
-        super.focus(objectKey);
     }
 }
 

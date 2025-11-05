@@ -1,5 +1,6 @@
 import { useContext, useMemo, useState } from "react";
 import { GlobalStateContext } from "@app/context/Context";
+import { eventBus } from "@app/context/EventBus";
 import { SplitDirection } from "@app/context/Panels";
 import { ButtonDef, ButtonsWrapper, ButtonWrapper } from "@app/panes/buttons";
 import * as icons from "@app/panes/libs/Icons";
@@ -8,49 +9,41 @@ import { useReactFlow, getViewportForBounds, ReactFlowInstance } from "@xyflow/r
 // import { toPng, toSvg } from "html-to-image";
 import { toPng } from "html-to-image";
 
-export default function DiagramToolbar({ pKey }: { pKey: number }) {
+export default function DiagramToolbar({ pKey, selected }: { pKey: number, selected: string | undefined }) {
     const rfInstance = useReactFlow();
     const { state, stateDispatch } = useContext(GlobalStateContext);
     let viewname = useMemo(() => state.panels.getViewname(pKey), [state, pKey]);
     //
-    let [selected, setSelected] = useState<string | undefined>(undefined);
-    //
-    let clickSplit = (direction: SplitDirection) => {
-        console.log('click split', pKey, SplitDirection[direction]);
-        stateDispatch({ command: 'SPLIT', pKey, direction });
-    };
     let buttons: ButtonDef[] = useMemo(() => [{
         icon: <icons.AkarIconsAugmentedReality color="#5755d9"/>,
         desc: "focus",
-        ifEnabled: state.panels.getObjectSelected(pKey) !== undefined,
+        ifEnabled: selected !== undefined,
         onClick: () => {
-            let objectKey = state.panels.getObjectSelected(pKey);
-            if (viewname !== undefined && objectKey !== undefined) {
-                stateDispatch({ command: 'FOCUS', objectKey });
+            if (viewname !== undefined && selected !== undefined) {
+                eventBus.emit('FOCUS', { objectKey: selected });
             }
         }
     }, {
         icon: <icons.AkarIconsArrowForwardThick color="#5755d9"/>,
         desc: "pick",
-        ifEnabled: state.panels.getObjectSelected(pKey) !== undefined,
+        ifEnabled: selected !== undefined,
         onClick: () => {
-            let objectKey = state.panels.getObjectSelected(pKey);
-            if (viewname !== undefined && objectKey !== undefined) {
-                // use wKey instead of viewname here to maintain protocol consistency,
+            if (viewname !== undefined && selected !== undefined) {
+                // use pKey instead of viewname here to maintain protocol consistency,
                 // since it is hard for user (and LLM) to specify viewname in the gdb side.
-                stateDispatch({ command: 'PICK', pKey, objectKey });
+                stateDispatch({ command: 'PICK', pKey, objectKey: selected });
             }
         }
     }, {
         icon: <icons.AkarIconsChevronVertical color="#5755d9"/>,
         desc: "split (vert)",
         ifEnabled: true,
-        onClick: () => clickSplit(SplitDirection.horizontal)
+        onClick: () => stateDispatch({ command: 'SPLIT', pKey, direction: SplitDirection.horizontal })
     }, {
         icon: <icons.AkarIconsChevronHorizontal color="#5755d9"/>,
         desc: "split (horiz)",
         ifEnabled: true,
-        onClick: () => clickSplit(SplitDirection.vertical)
+        onClick: () => stateDispatch({ command: 'SPLIT', pKey, direction: SplitDirection.vertical })
     }, {
         icon: <icons.AkarIconsDownload color="#5755d9"/>,
         desc: "download",
