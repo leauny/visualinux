@@ -1,6 +1,6 @@
 import { createContext, useReducer } from "react";
 import Snapshots from "./Snapshots";
-import Panels, { DisplayOption, SecondaryPanel, SplitDirection } from "./Panels";
+import Panels, { DisplayOption, SplitDirection } from "./Panels";
 import { Snapshot, ViewAttrs } from "@app/visual/types";
 import { addLogTo, LogEntry, LogType } from "@app/utils";
 
@@ -41,7 +41,7 @@ const initialState = GlobalState.create();
 
 export type GlobalStateAction =
 | { command: 'NEW',    snKey: string, snapshot: Snapshot, pc: string, timestamp: string }
-| { command: 'DIFF',   snKeySrc: string, snKeyDst: string }
+| { command: 'DIFF',   snKeySrc: string, snKeyDst: string, trackedAddrs: number[] }
 | { command: 'SPLIT',  pKey: number, direction: SplitDirection }
 | { command: 'PICK',   pKey: number, objectKey: string }
 | { command: 'USE',    pKey: number, snKey: string }
@@ -88,8 +88,8 @@ function globalStateDispatcher(state: GlobalState, action: GlobalStateAction) {
             state.snapshots.new(action.snKey, action.snapshot);
             return state.refresh();
         case 'DIFF':
-            console.log(`DIFF ${action.snKeySrc} ${action.snKeyDst}`);
-            state.snapshots.diff(action.snKeySrc, action.snKeyDst);
+            console.log(`DIFF ${action.snKeySrc} ${action.snKeyDst} ${action.trackedAddrs.length}`);
+            state.snapshots.diff(action.snKeySrc, action.snKeyDst, action.trackedAddrs);
             return state.refresh();
         case 'SPLIT':
             console.log(`SPLIT ${action.pKey} ${action.direction}`);

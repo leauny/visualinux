@@ -40,6 +40,7 @@ def main():
                 'command': 'DIFF',
                 'snKeySrc': f'$foo_{i-1}',
                 'snKeyDst': f'$foo_{i}',
+                'trackedAddrs': []
             })
 
     if len(relpaths) > 1:

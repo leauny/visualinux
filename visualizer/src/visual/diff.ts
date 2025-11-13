@@ -1,7 +1,7 @@
 import { Snapshot, StateView, Box, Abst, Container, ContainerMember } from "./types";
 
-export function calcSnapshotDiff(diffKey: string, snSrc: Snapshot, snDst: Snapshot): Snapshot {
-    return new SnapshotDiffSynthesizer(diffKey, snSrc, snDst).synthesize();
+export function calcSnapshotDiff(diffKey: string, snSrc: Snapshot, snDst: Snapshot, trackedAddrs: number[]): Snapshot {
+    return new SnapshotDiffSynthesizer(diffKey, snSrc, snDst, trackedAddrs).synthesize();
 }
 
 class SnapshotDiffSynthesizer {
@@ -9,11 +9,13 @@ class SnapshotDiffSynthesizer {
     snSrc: Snapshot;
     snDst: Snapshot;
     snRes: Snapshot;
-    constructor(key: string, snSrc: Snapshot, snDst: Snapshot) {
+    trackedAddrs: number[];
+    constructor(key: string, snSrc: Snapshot, snDst: Snapshot, trackedAddrs: number[]) {
         this.key = key;
         this.snSrc = JSON.parse(JSON.stringify(snSrc));
         this.snDst = JSON.parse(JSON.stringify(snDst));
         this.snRes = { key: key, views: {}, pc: '', timestamp: 0 };
+        this.trackedAddrs = trackedAddrs;
     }
     synthesize() {
         console.log('synthesize diff', this.snSrc, this.snDst);
@@ -104,12 +106,12 @@ class SnapshotDiffSynthesizer {
         // rewrite for viewDst
         let rewriteDst: Set<string> = new Set();
         for (const key of Object.keys(viewDst.pool.boxes)) {
-            if (!(key in viewSrc.pool.boxes)) {
+            if (!(key in viewSrc.pool.boxes) || key in this.trackedAddrs) {
                 rewriteDst.add(key);
             }
         }
         for (const key of Object.keys(viewDst.pool.containers)) {
-            if (!(key in viewSrc.pool.containers)) {
+            if (!(key in viewSrc.pool.containers) || key in this.trackedAddrs) {
                 rewriteDst.add(key);
             }
         }
@@ -117,12 +119,12 @@ class SnapshotDiffSynthesizer {
         // rewrite for viewSrc
         let rewriteSrc: Set<string> = new Set();
         for (const key of Object.keys(viewSrc.pool.boxes)) {
-            if (!(key in viewDst.pool.boxes)) {
+            if (!(key in viewDst.pool.boxes) || key in this.trackedAddrs) {
                 rewriteSrc.add(key);
             }
         }
         for (const key of Object.keys(viewSrc.pool.containers)) {
-            if (!(key in viewDst.pool.containers)) {
+            if (!(key in viewDst.pool.containers) || key in this.trackedAddrs) {
                 rewriteSrc.add(key);
             }
         }

@@ -1,5 +1,4 @@
-// utils/EventBus.ts
-import mitt from 'mitt';
+import mitt from "mitt";
 
 type Events = {
     FOCUS: {

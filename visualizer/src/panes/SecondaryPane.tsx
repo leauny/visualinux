@@ -1,3 +1,5 @@
+import { useContext, useEffect, useState } from "react";
+import { Rnd } from "react-rnd";
 import { GlobalStateContext } from "@app/context/Context";
 import { eventBus } from "@app/context/EventBus";
 import { SecondaryPanel } from "@app/context/Panels";
@@ -6,9 +8,6 @@ import * as icons from "@app/panes/libs/Icons";
 import { ReactFlowGraph } from "@app/visual/types";
 import { nodeTypes } from "@app/visual/nodes";
 import { edgeTypes } from "@app/visual/edges";
-
-import { useContext, useEffect, useState } from "react";
-import { Rnd } from "react-rnd";
 
 import {
     ReactFlowProvider,

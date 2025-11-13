@@ -91,18 +91,20 @@ class Core:
                     print(f'vl_sync() vdiff monitor init')
                     self.__init_vdiff_monitor()
                     print(f'vl_sync() vdiff monitor init OK')
+                self.vdiff_monitor.begin_sync(sn_key)
                 self.__update_vdiff_monitor(snapshot)
-                # debug
-                gdb_adaptor.reset()
-                KValue.reset()
-                SymTable.reset()
-                ss = self.__fetch_bpf_map_snapshot()
-                ss.key = sn_key + '_vdiff_monitor_debug'
-                self.send({
-                    'command': 'NEW',
-                    'snKey': ss.key,
-                    'snapshot': ss.to_json(),
-                })
+                self.vdiff_monitor.end_sync()
+                # # debug
+                # gdb_adaptor.reset()
+                # KValue.reset()
+                # SymTable.reset()
+                # ss = self.__fetch_bpf_map_snapshot()
+                # ss.key = sn_key + '_vdiff_monitor_debug'
+                # self.send({
+                #     'command': 'NEW',
+                #     'snKey': ss.key,
+                #     'snapshot': ss.to_json(),
+                # })
 
             except Exception as e:
                 print(f'vl_sync() vdiff monitor update failed: {e!s}')
@@ -136,13 +138,13 @@ class Core:
             for box in view.pool.containers.values():
                 tracked_addrs.append(box.addr)
         self.vdiff_monitor.update(tracked_addrs)
-        print('tracked_addrs:', [f'{addr:#x}' for addr in self.vdiff_monitor.tracked_addrs])
 
     def send_diff(self, sn_key_src: str, sn_key_dst: str):
         self.send({
             'command': 'DIFF',
             'snKeySrc': sn_key_src,
             'snKeyDst': sn_key_dst,
+            'trackedAddrs': self.vdiff_monitor.get_tracked_addrs(sn_key_src, sn_key_dst)
         })
 
     def send(self, json_data: dict):

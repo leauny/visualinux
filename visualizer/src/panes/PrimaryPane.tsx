@@ -1,7 +1,12 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { GlobalStateContext } from "@app/context/Context";
 import { eventBus } from "@app/context/EventBus";
+import DiagramToolbar from "@app/panes/DiagramToolbar";
+import * as icons from "@app/panes/libs/Icons";
 import { Renderer } from "@app/visual/render";
+import { nodeTypes } from "@app/visual/nodes";
+import { edgeTypes } from "@app/visual/edges";
+
 import {
     ReactFlowProvider,
     ReactFlow,
@@ -13,11 +18,6 @@ import {
 
 import "@xyflow/react/dist/style.css";
 import "../index.css";
-
-import { nodeTypes } from "@app/visual/nodes";
-import { edgeTypes } from "@app/visual/edges";
-import DiagramToolbar from "@app/panes/DiagramToolbar";
-import * as icons from "@app/panes/libs/Icons";
 
 export default function PrimaryPane({ pKey }: { pKey: number }) {
     const [selected, setSelected] = useState<string | undefined>(undefined);

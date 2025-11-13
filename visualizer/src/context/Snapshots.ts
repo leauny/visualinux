@@ -29,7 +29,7 @@ export default class Snapshots {
         this.dataIndex.set(snKey, this.data.length - 1);
         console.log('new snapshot OK', snKey, snapshot);
     }
-    diff(snKeySrc: string, snKeyDst: string) {
+    diff(snKeySrc: string, snKeyDst: string, trackedAddrs: number[]) {
         const diffKey = `diff-${snKeySrc}-${snKeyDst}`;
         if (this.has(diffKey)) {
             return this.get(diffKey);
@@ -38,7 +38,7 @@ export default class Snapshots {
         const snDst = this.get(snKeyDst);
         if (snSrc === null) return snDst;
         if (snDst === null) return snSrc;
-        const snDiff = calcSnapshotDiff(diffKey, snSrc, snDst);
+        const snDiff = calcSnapshotDiff(diffKey, snSrc, snDst, trackedAddrs);
         this.new(diffKey, snDiff);
     }
     //
