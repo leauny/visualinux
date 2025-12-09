@@ -196,10 +196,6 @@ define Task as Box<task_struct> {
 
 In **Visualinux**, a **Text** is displayed as a name-value pair, and we can customize the display style of both the name and the value, with labels and typos, respectively.
 
-#### Flatten
-
-;;;
-
 #### Distill
 
 Currently we suuport `Array` and `UnorderedSet` for developers to **distill** a complex data structure to a compact form.
